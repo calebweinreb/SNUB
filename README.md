@@ -4,18 +4,20 @@
 
 
 ## Installation
-Create a new environment, clone this repo and pop install
+Create and activate a new environment, clone this repo and pip install
 ```
 conda create -n snub python=3.7
+conda activate snub
 git clone https://github.com/calebweinreb/SNUB.git
-pip instal -e snub
+pip install -e snub
 ```
 
 ## Quick start
-With the installation conda environment loaded, run
+From the command line, run
 `snub [path/to/snub/repo]/projects/example_1p_imaging_and_location`
-- Overall controls
-  - Use the play/pause button at the bottom to playback data in real-time
+
+## Interface
+- Use the play/pause button at the bottom to play data in real-time
 - Video controls
   - On a mac track-pad, use multi-touch gestures to zoom/pan around the video view
 - Rasters/timeline controls:
