@@ -11,7 +11,7 @@ import numpy as np
 import cmapy
 import time
 
-from snub.gui.video import VideoFrame
+from snub.gui.panels import PanelStack, VideoFrame
 from snub.gui.tracks import TrackStack, Raster
 
 
@@ -56,10 +56,12 @@ class MainWindow(QMainWindow):
         self.project_directory = sys.argv[1]+'/'
         config = json.load(open(self.project_directory+'config.json','r'))
 
-        # video stack
-        self.video_stack = []
+        # panel stack
+        self.panelStack = PanelStack(self)
         for video_props in config['videos']:
-            self.video_stack.append(VideoFrame(project_directory=self.project_directory, **video_props))
+            video_frame = VideoFrame(project_directory=self.project_directory, **video_props)
+            self.panelStack.add_panel(video_frame)
+        self.panelStack.initUI()
 
         # create track stack
         self.trackStack = TrackStack(self, bounds=config['bounds'])
@@ -67,8 +69,12 @@ class MainWindow(QMainWindow):
             track = Raster(self.trackStack, project_directory=self.project_directory, **raster_props)
             self.trackStack.add_track(track)
         self.trackStack.initUI(vlines=config['vlines'])
+
+
         self.trackStack.new_current_position.connect(self.update_current_position)
+        self.trackStack.new_current_position.connect(self.panelStack.update_current_position)
         self.new_current_position.connect(self.trackStack.update_current_position)
+        self.new_current_position.connect(self.panelStack.update_current_position)
         self.new_current_position.connect(self.update_current_position)
 
         # timer for video play
@@ -80,36 +86,32 @@ class MainWindow(QMainWindow):
 
 
     def initUI(self):
-        video_layout = QVBoxLayout()
-        for video_frame in self.video_stack:
-            video_layout.addWidget(video_frame)
 
-        data_panels = QHBoxLayout()
-        data_panels.addLayout(video_layout)
-        data_panels.addWidget(self.trackStack)
+        stacks = QHBoxLayout()
+        stacks.addWidget(self.panelStack)
+        stacks.addWidget(self.trackStack)
 
         self.play_button = QPushButton()
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.play_button.clicked.connect(self.toggle_play_state)
-        button_strip = QHBoxLayout()
-        button_strip.addWidget(self.play_button)
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.play_button)
         
         layout = QVBoxLayout()
-        layout.addLayout(data_panels)
-        layout.addLayout(button_strip)
+        layout.addLayout(stacks)
+        layout.addLayout(buttons)
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
     def update_current_position(self,position):
         self.current_position = position
-        for video_frame in self.video_stack:
-            video_frame.update_frame(position)
 
     def increment_position(self):
         new_position = self.current_position + 1
         if new_position >= self.trackStack.bounds[1]:
             new_position = self.trackStack.bounds[0]
+        print(new_position)
         self.new_current_position.emit(new_position)
 
     def toggle_play_state(self):
