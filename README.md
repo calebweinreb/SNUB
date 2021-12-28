@@ -19,11 +19,11 @@ With the installation conda environment loaded, run
 - Video controls
   - On a mac track-pad, use multi-touch gestures to zoom/pan around the video view
 - Rasters/timeline controls:
-- Click and/or drag to change the current frame
-- On a mac track-pad, two-finger-swipe up-and-down to zoom in and out
-- On a mac track-pad, two-finger-swipe sideways to pan through time
-- Shift-click-and-drag to select frames, or control-click-and-drag to deselect
-- With frames selected, right-click for the option to re-order the raster mean value in the selected region
+  - Click and/or drag to change the current frame
+  - On a mac track-pad, two-finger-swipe up-and-down to zoom in and out
+  - On a mac track-pad, two-finger-swipe sideways to pan through time
+  - Shift-click-and-drag to select frames, or control-click-and-drag to deselect
+  - With frames selected, right-click for the option to re-order the raster mean value in the selected region
 
 ## TODO
 - [ ] Document project directory format
