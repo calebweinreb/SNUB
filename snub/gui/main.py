@@ -111,7 +111,6 @@ class MainWindow(QMainWindow):
         new_position = self.current_position + 1
         if new_position >= self.trackStack.bounds[1]:
             new_position = self.trackStack.bounds[0]
-        print(new_position)
         self.new_current_position.emit(new_position)
 
     def toggle_play_state(self):
