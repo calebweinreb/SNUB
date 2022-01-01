@@ -54,6 +54,7 @@ class MainWindow(QMainWindow):
         
         # load config
         self.project_directory = sys.argv[1]+'/'
+        self.setWindowTitle('Systems neuro browser ({})'.format(sys.argv[1]))
         config = json.load(open(self.project_directory+'config.json','r'))
 
         # panel stack
