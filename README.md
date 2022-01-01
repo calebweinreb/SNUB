@@ -35,3 +35,8 @@ From the command line, run
 - [ ] Test non-MacOS operating systems
 - [ ] Add support for spike data
 - [ ] Add line-graph viewer
+- [ ] Interactive resizing/hiding/showing tracks
+- [ ] Draggable horizontal line for highlighting track rows
+- [ ] Display title of project
+- [ ] Optionally display track titles
+- [ ] Open projects from within GUI
