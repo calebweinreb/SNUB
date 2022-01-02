@@ -20,7 +20,8 @@ class Raster(QWidget):
                  max_label_height=20, label_color=(255,255,255), label_font_size=12,
                  title_color=(255,255,255), title_margin=5, title_font_size=14, title_height=30):
 
-        super().__init__(parent=parent)
+        super().__init__()
+        self.trackStack = parent
         self.vmin,self.vmax = vmin,vmax
         self.colormap = colormap
         self.labels = labels
@@ -92,7 +93,7 @@ class Raster(QWidget):
 
     def get_current_pixmap(self):
         ### NOTE: CAN BE ABSTRACTED: SEE SIMILAR TIMELINE METHOD
-        current_range = self.parent().current_range
+        current_range = self.trackStack.current_range
         visible_range = current_range[1]-current_range[0]
         best_downsample = np.min(np.nonzero(visible_range / self.downsample_options < self.max_display_resolution)[0])
         downsample = self.downsample_options[best_downsample]
@@ -121,7 +122,8 @@ class Raster(QWidget):
 
 class Timeline(QWidget):
     def __init__(self, parent):
-        super().__init__(parent=parent)
+        super().__init__()
+        self.trackStack = parent
         self.TICK_SPACING_OPTIONS = np.array([1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000])
         self.MAX_TICKS_VISIBLE = 20
         self.HEIGHT = 30
@@ -141,7 +143,7 @@ class Timeline(QWidget):
 
     def get_visible_tick_positions(self):
         ### NOTE: CAN BE ABSTRACTED: SEE SIMILAR RASTER METHOD
-        current_range = self.parent().current_range
+        current_range = self.trackStack.current_range
         visible_range = current_range[1]-current_range[0]
         best_spacing = np.min(np.nonzero(visible_range/self.TICK_SPACING_OPTIONS < self.MAX_TICKS_VISIBLE)[0])
         tick_interval = self.TICK_SPACING_OPTIONS[best_spacing]
@@ -223,13 +225,15 @@ class TrackStack(QWidget):
         sizePolicy.setHorizontalStretch(2)
         self.setSizePolicy(sizePolicy)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 5, 0, 5)
+        hbox = QHBoxLayout(self)
+        splitter = QSplitter(Qt.Vertical)
         for track in self.tracks:
-            layout.addWidget(track)
+            splitter.addWidget(track)
+        hbox.addWidget(splitter)
         self.overlay = TrackOverlay(self, vlines=vlines)
         self.overlay.vlines['cursor'] = {'position':0, 'color':(250,250,250), 'linewidth':1}
         self.update_all()
+
 
     def add_track(self, track):
         self.tracks.insert(0,track)
