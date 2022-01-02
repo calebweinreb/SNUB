@@ -90,7 +90,7 @@ class MainWindow(QMainWindow):
 
 
     def initUI(self):
-        self.resize(1500, 768)
+        self.resize(1500, 900)
         stacks = QHBoxLayout()
         stacks.addWidget(self.panelStack)
         stacks.addWidget(self.trackStack)

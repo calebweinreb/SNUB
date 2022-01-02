@@ -28,7 +28,7 @@ class CheckableComboBox(QtWidgets.QComboBox):
         super(CheckableComboBox, self).addItem(label)
         item_index = self.count()-1
         item = self.model().item(item_index,0)
-        item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+        item.setFlags(QtCore.Qt.ItemIsEnabled)
         item.setForeground(QtGui.QColor('black'))
         item.setBackground(QtGui.QColor(*color))
         if checked: item.setCheckState(QtCore.Qt.Checked)
@@ -78,19 +78,26 @@ class Trace(QWidget):
         self.plotWidget = pg.plot(title="Three plot curves")
         self.plotWidget.hideAxis('bottom')
         self.plotWidget.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.plotWidget.showGrid(x=False, y=True, alpha = 0.5)  
 
         self.trace_labels = []
         for i in range(self.data.shape[0]):
             self.dropDown.addItem(self.labels[i], self.colors[i], checked=(i in self.visible_traces))
-            trace_label = QLabel(self.labels[i])
-            trace_label.setStyleSheet("color: rgb({},{},{});".format(*self.colors[i]))
-            trace_label.setMargin(self.trace_label_margin)
+            trace_label = QPushButton(self.labels[i])
+            trace_label.setFixedWidth(trace_label.fontMetrics().boundingRect(trace_label.text()).width()+20)
+            trace_label.setStyleSheet("background-color: rgb(20,20,20); color: rgb({},{},{});".format(*self.colors[i]))
+            trace_label.pressed.connect(self.trace_label_button_push)
+            #trace_label.setMargin(self.trace_label_margin)
             if not i in self.visible_traces: trace_label.hide()
             self.trace_labels.append(trace_label)
     
         self.initUI()
         self.update_plot()
         
+
+    def trace_label_button_push(self):
+        index = self.trace_labels.index(self.sender())
+        self.hide_trace(index)
 
     def get_random_color(self):
         hue = np.random.uniform(0,1)
