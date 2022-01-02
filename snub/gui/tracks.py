@@ -6,22 +6,170 @@ from PyQt5.QtGui import *
 from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
-import sys, os, cv2, json
+import pyqtgraph as pg
+import sys
+import os
+import cv2
+import json
 import numpy as np
 import cmapy
 import time
+import colorsys
+
+class CheckableComboBox(QtWidgets.QComboBox):
+    toggleSignal = QtCore.pyqtSignal(bool, int)
+    def __init__(self, width=100):
+        super().__init__()
+        self.setFixedWidth(width)
+        self.view().pressed.connect(self.handleItemPressed)
+        self.setModel(QStandardItemModel(self))
+
+    def addItem(self, label, color, checked=False):
+        super(CheckableComboBox, self).addItem(label)
+        item_index = self.count()-1
+        item = self.model().item(item_index,0)
+        item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+        item.setForeground(QtGui.QColor('black'))
+        item.setBackground(QtGui.QColor(*color))
+        if checked: item.setCheckState(QtCore.Qt.Checked)
+        else: item.setCheckState(QtCore.Qt.Unchecked)
+
+    def handleItemPressed(self, index):
+        item = self.model().itemFromIndex(index)
+        checked = item.checkState()==QtCore.Qt.Checked
+        self.toggleSignal.emit(not checked, index.row())
+
+    def set_checked(self, checked, index):
+        checkState = QtCore.Qt.Checked if checked else QtCore.Qt.Unchecked
+        self.model().item(index,0).setCheckState(checkState)
 
 
-
-class Raster(QWidget):
-    def __init__(self, parent, data_path=None, project_directory=None, height_ratio=1, name="",
-                 vmin=0, vmax=1, colormap='viridis', downsample_options=np.array([1,10,100]), 
-                 max_display_resolution=2000, labels=[], label_margin=10, max_label_width=100, 
-                 max_label_height=20, label_color=(255,255,255), label_font_size=12,
-                 title_color=(255,255,255), title_margin=5, title_font_size=14, title_height=30):
+class Trace(QWidget):
+    def __init__(self, trackStack, data_path=None, project_directory=None, height_ratio=1, 
+                 labels=None, colors=None, initial_visible_traces=set([0]), 
+                 controls_padding_right=10, controls_padding_top=5, trace_label_margin=4,
+                 **kwargs):
 
         super().__init__()
-        self.trackStack = parent
+        self.trackStack = trackStack
+        self.current_range = trackStack.current_range
+        self.height_ratio = height_ratio
+        self.controls_padding_right = controls_padding_right
+        self.controls_padding_top = controls_padding_top
+        self.trace_label_margin = trace_label_margin
+
+        assert data_path is not None and project_directory is not None
+        self.data = np.load(project_directory+'/'+data_path)
+        self.visible_traces = initial_visible_traces
+
+        if labels is not None: assert len(labels)==self.data.shape[0]
+        else: labels = [str(i) for i in range(self.data.shape[0])]
+        self.labels = labels
+
+        if colors is not None: assert len(colors)==self.data.shape[0]
+        else: colors = [self.get_random_color() for i in range(self.data.shape[0])]
+        self.colors = colors
+        
+        self.clearButton = QPushButton("Clear")
+        self.clearButton.clicked.connect(self.clear)
+        self.dropDown = CheckableComboBox()
+        self.dropDown.toggleSignal.connect(self.toggle_trace)
+
+        self.plotWidget = pg.plot(title="Three plot curves")
+        self.plotWidget.hideAxis('bottom')
+        self.plotWidget.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+
+        self.trace_labels = []
+        for i in range(self.data.shape[0]):
+            self.dropDown.addItem(self.labels[i], self.colors[i], checked=(i in self.visible_traces))
+            trace_label = QLabel(self.labels[i])
+            trace_label.setStyleSheet("color: rgb({},{},{});".format(*self.colors[i]))
+            trace_label.setMargin(self.trace_label_margin)
+            if not i in self.visible_traces: trace_label.hide()
+            self.trace_labels.append(trace_label)
+    
+        self.initUI()
+        self.update_plot()
+        
+
+    def get_random_color(self):
+        hue = np.random.uniform(0,1)
+        saturation,value = 1,1
+        return [int(255*x) for x in colorsys.hsv_to_rgb(hue,1, 1)]
+
+    def initUI(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0,0,0,0)
+        layout.addWidget(self.plotWidget)
+
+        self.controls = QWidget(self)
+        control_layout = QHBoxLayout(self.controls)
+        control_layout.addStretch(0)
+        for trace_label in self.trace_labels: control_layout.addWidget(trace_label, alignment=QtCore.Qt.AlignTop)
+        control_layout.addWidget(self.dropDown, alignment=QtCore.Qt.AlignTop)
+        control_layout.addWidget(self.clearButton, alignment=QtCore.Qt.AlignTop)
+        self.update_controls_geometry()
+        
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy.setVerticalStretch(self.height_ratio)
+        self.setSizePolicy(sizePolicy)
+        self.setMinimumSize(1,1)
+        self.update()
+
+    def clear(self):
+        for i in list(self.visible_traces):
+            self.hide_trace(i, update_plot=False)
+        self.update_plot()
+
+    def toggle_trace(self, state, i):
+        if state: self.show_trace(i)
+        else: self.hide_trace(i)
+
+    def show_trace(self, index, update_plot=True):
+        if not index in self.visible_traces:
+            self.dropDown.set_checked(index, True)
+            self.visible_traces.add(index)
+            self.trace_labels[index].show()
+            if update_plot: self.update_plot()
+
+    def hide_trace(self, index, update_plot=True):
+        if index in self.visible_traces:
+            self.dropDown.set_checked(index, False)
+            self.visible_traces.remove(index)
+            self.trace_labels[index].hide()
+            if update_plot: self.update_plot()
+
+    def update_plot(self):
+        self.plotWidget.clear()
+        for i in self.visible_traces:
+            x,y,color = range(self.data.shape[1]), self.data[i,:], self.colors[i]
+            self.plotWidget.plot(x, y, pen=pg.mkPen(QColor(*color)))
+
+    def update_controls_geometry(self): 
+        self.controls.setGeometry(0, 0, self.width(), self.height())
+
+    def resizeEvent(self, event): #2
+        super().resizeEvent(event)
+        self.update_controls_geometry()
+
+    def update_current_range(self, current_range):
+        view_box_width = self.plotWidget.viewGeometry().width()
+        relative_yaxis_width = (self.width()-view_box_width)/self.width()
+        xmin = current_range[0] + relative_yaxis_width*(current_range[1]-current_range[0])
+        self.plotWidget.setXRange(xmin, current_range[1], padding=0)
+
+class Raster(QWidget):
+    display_trace_signal = QtCore.pyqtSignal(int)
+    def __init__(self, trackStack, data_path=None, project_directory=None, height_ratio=1,
+                 name="", vmin=0, vmax=1, colormap='viridis', downsample_options=np.array([1,10,100]), 
+                 max_display_resolution=2000, labels=[], label_margin=10, max_label_width=100, 
+                 max_label_height=20, label_color=(255,255,255), label_font_size=12,
+                 title_color=(255,255,255), title_margin=5, title_font_size=14, title_height=30, 
+                 **kwargs):
+        super().__init__()
+        self.trackStack = trackStack
+        self.current_range = trackStack.current_range
+        self.bounds = trackStack.bounds
         self.vmin,self.vmax = vmin,vmax
         self.colormap = colormap
         self.labels = labels
@@ -42,28 +190,31 @@ class Raster(QWidget):
         assert data_path is not None and project_directory is not None
         self.data = np.load(project_directory+'/'+data_path)
         self.row_order = np.arange(self.data.shape[0])
-        self.setup_context_menu()
         self.update_image_data()
         self.initUI()
 
-    def setup_context_menu(self):
-        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        for name,slot in [('Reorder by selection', self.reorder_by_selection),
+
+    def contextMenuEvent(self, event):
+        contextMenu = QMenu(self)
+        trace_index = self.row_order[int(event.y()/self.height()*self.data.shape[0])]
+        display_trace_slot = lambda: self.display_trace_signal.emit(trace_index)
+        for name,slot in [('Dislay trace {}'.format(trace_index), display_trace_slot),
+                          ('Reorder by selection', self.reorder_by_selection),
                           ('Restore original order', self.restore_original_order)]:
-            
+
             label = QLabel(name)
             label.setStyleSheet("""
-            QLabel { background-color : #3E3E3E; padding: 10px 12px 10px 12px;}
-            QLabel:hover { background-color: #999999;} """)
+                QLabel { background-color : #3E3E3E; padding: 10px 12px 10px 12px;}
+                QLabel:hover { background-color: #999999;} """)
             action = QWidgetAction(self)
             action.setDefaultWidget(label)
             action.triggered.connect(slot)
-            self.addAction(action)
+            contextMenu.addAction(action)
+        action = contextMenu.exec_(self.mapToGlobal(event.pos()))
 
     def reorder_by_selection(self):
-        bounds = self.parent().bounds
-        mask = self.parent().selection_mask>0
-        activation = self.data[:,bounds[0]:bounds[1]][:,mask].mean(1)
+        mask = self.trackStack.selection_mask>0
+        activation = self.data[:,self.bounds[0]:self.bounds[1]][:,mask].mean(1)
         self.update_row_order(np.argsort(activation)[::-1])
 
     def restore_original_order(self):
@@ -93,12 +244,17 @@ class Raster(QWidget):
 
     def get_current_pixmap(self):
         ### NOTE: CAN BE ABSTRACTED: SEE SIMILAR TIMELINE METHOD
-        current_range = self.trackStack.current_range
-        visible_range = current_range[1]-current_range[0]
+        current_range = self.current_range
+        visible_range = self.current_range[1]-self.current_range[0]
         best_downsample = np.min(np.nonzero(visible_range / self.downsample_options < self.max_display_resolution)[0])
         downsample = self.downsample_options[best_downsample]
-        cropped_image = self.image_data[:,current_range[0]:current_range[1]][:,::downsample]
+        cropped_image = self.image_data[:,self.current_range[0]:self.current_range[1]][:,::downsample]
         return  QPixmap(self.cvImage_to_Qimage(cropped_image))
+
+    def update_current_range(self, current_range):
+        self.current_range = current_range
+        self.update()
+
 
     def paintEvent(self, event):
         qp = QPainter(self)
@@ -121,9 +277,9 @@ class Raster(QWidget):
 
 
 class Timeline(QWidget):
-    def __init__(self, parent):
+    def __init__(self, trackStack):
         super().__init__()
-        self.trackStack = parent
+        self.current_range = trackStack.current_range
         self.TICK_SPACING_OPTIONS = np.array([1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000])
         self.MAX_TICKS_VISIBLE = 20
         self.HEIGHT = 30
@@ -143,13 +299,12 @@ class Timeline(QWidget):
 
     def get_visible_tick_positions(self):
         ### NOTE: CAN BE ABSTRACTED: SEE SIMILAR RASTER METHOD
-        current_range = self.trackStack.current_range
-        visible_range = current_range[1]-current_range[0]
+        visible_range = self.current_range[1]-self.current_range[0]
         best_spacing = np.min(np.nonzero(visible_range/self.TICK_SPACING_OPTIONS < self.MAX_TICKS_VISIBLE)[0])
         tick_interval = self.TICK_SPACING_OPTIONS[best_spacing]
-        first_tick = current_range[0] - current_range[0]%tick_interval + tick_interval
-        abs_tick_positions = np.arange(first_tick,current_range[1],tick_interval)
-        rel_tick_positions = (abs_tick_positions-current_range[0])/visible_range*self.width()
+        first_tick = self.current_range[0] - self.current_range[0]%tick_interval + tick_interval
+        abs_tick_positions = np.arange(first_tick,self.current_range[1],tick_interval)
+        rel_tick_positions = (abs_tick_positions-self.current_range[0])/visible_range*self.width()
         return abs_tick_positions.astype(int),rel_tick_positions.astype(int)
 
     def paintEvent(self, event):
@@ -169,12 +324,19 @@ class Timeline(QWidget):
                 Qt.AlignHCenter, str(a))
         qp.end()
 
+    def update_current_range(self, current_range):
+        self.current_range = current_range
+        self.update()
+
 
 class TrackOverlay(QWidget):
-    def __init__(self, parent, vlines={}):
-        super().__init__(parent=parent)
+    def __init__(self, trackStack, vlines={}):
+        super().__init__(parent=trackStack)
+        self.trackStack = trackStack
         self.vlines = vlines
         self.selection_intervals = []
+        self.bounds = trackStack.bounds
+        self.current_range = trackStack.current_range
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
     def set_selection_intervals(self, selection_mask, bounds):
@@ -184,32 +346,35 @@ class TrackOverlay(QWidget):
         self.selection_intervals = list(zip(starts,ends))
 
     def paintEvent(self, event):
-        self.resize(self.parent().size())
+        self.resize(self.trackStack.size())
         qp = QPainter()
         qp.begin(self)
         for key,vline in self.vlines.items():
             qp.setPen(QPen(QColor(*vline['color']),vline['linewidth']))
-            r = self.parent().abs_to_rel(vline['position'])
+            r = self.trackStack.abs_to_rel(vline['position'])
             if r > 0 and r < self.width():
-                qp.drawLine(r,0,r,self.parent().height())
+                qp.drawLine(r,0,r,self.trackStack.height())
 
         qp.setPen(QPen(QColor(255,255,255,150), 1))
         qp.setBrush(QBrush(QColor(255,255,255,100), Qt.SolidPattern))
         for s,e in self.selection_intervals:
-            s_rel = self.parent().abs_to_rel(s)
-            e_rel = self.parent().abs_to_rel(e)
+            s_rel = self.trackStack.abs_to_rel(s)
+            e_rel = self.trackStack.abs_to_rel(e)
             if e_rel > 0 or s_rel < self.width() and e_rel > s_rel:
                 qp.drawRect(s_rel, 0, e_rel-s_rel, self.height())
 
         qp.end()
 
+    def update_current_range(self, current_range):
+        self.current_range = current_range
+        self.update()
+
 
 class TrackStack(QWidget):
     new_current_position = pyqtSignal(int)
 
-    def __init__(self, parent, bounds=[0,1], zoom_gain=0.02, min_range=30):
-        super().__init__(parent=parent)
-        self.mainWindow = parent
+    def __init__(self, bounds=[0,1], zoom_gain=0.02, min_range=30):
+        super().__init__()
         self.zoom_gain = zoom_gain
         self.min_range = min_range
         self.bounds = bounds
@@ -226,10 +391,10 @@ class TrackStack(QWidget):
         self.setSizePolicy(sizePolicy)
 
         hbox = QHBoxLayout(self)
-        splitter = QSplitter(Qt.Vertical)
+        self.splitter = QSplitter(Qt.Vertical)
         for track in self.tracks:
-            splitter.addWidget(track)
-        hbox.addWidget(splitter)
+            self.splitter.addWidget(track)
+        hbox.addWidget(self.splitter)
         self.overlay = TrackOverlay(self, vlines=vlines)
         self.overlay.vlines['cursor'] = {'position':0, 'color':(250,250,250), 'linewidth':1}
         self.update_all()
@@ -265,16 +430,17 @@ class TrackStack(QWidget):
             self.new_current_position.emit(position)        
 
     def mousePressEvent(self, event):
-        position = int(self.rel_to_abs(event.x()))
-        modifiers = QtWidgets.QApplication.keyboardModifiers()
-        if modifiers == QtCore.Qt.ShiftModifier:
-            self.update_selection_mask(interval=(position,position+1),value=1)
-            self.selection_drag_start(position, 1)
-        elif modifiers == QtCore.Qt.ControlModifier:
-            self.update_selection_mask(interval=(position,position+1),value=0)
-            self.selection_drag_start(position, -1)
-        else:
-            self.new_current_position.emit(position)
+        if event.button() == QtCore.Qt.LeftButton:
+            position = int(self.rel_to_abs(event.x()))
+            modifiers = QtWidgets.QApplication.keyboardModifiers()
+            if modifiers == QtCore.Qt.ShiftModifier:
+                self.update_selection_mask(interval=(position,position+1),value=1)
+                self.selection_drag_start(position, 1)
+            elif modifiers == QtCore.Qt.ControlModifier:
+                self.update_selection_mask(interval=(position,position+1),value=0)
+                self.selection_drag_start(position, -1)
+            else:
+                self.new_current_position.emit(position)
 
     def mouseReleaseEvent(self, event):
         self.selection_drag_end()
@@ -301,13 +467,11 @@ class TrackStack(QWidget):
     def update_current_range(self, new_range=None):
         if new_range is not None: self.current_range = new_range
         for child in self.tracks+[self.overlay]: 
-            child.current_range = self.current_range
-            child.update()
+            child.update_current_range(self.current_range)
 
     def update_current_position(self, position):
         self.overlay.vlines['cursor']['position'] = position
         self.overlay.update()
-
 
     def update_selection_mask(self, interval=(0,0), value=0):
         if interval[0]-self.bounds[0] < 0: return

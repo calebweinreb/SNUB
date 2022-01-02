@@ -12,7 +12,7 @@ import cmapy
 import time
 
 from snub.gui.panels import PanelStack, VideoFrame
-from snub.gui.tracks import TrackStack, Raster
+from snub.gui.tracks import TrackStack, Raster, Trace
 
 
 
@@ -65,12 +65,15 @@ class MainWindow(QMainWindow):
         self.panelStack.initUI()
 
         # create track stack
-        self.trackStack = TrackStack(self, bounds=config['bounds'])
+        self.trackStack = TrackStack(bounds=config['bounds'])
         for raster_props in config['rasters']:
-            track = Raster(self.trackStack, project_directory=self.project_directory, **raster_props)
-            self.trackStack.add_track(track)
+            raster_track = Raster(self.trackStack, project_directory=self.project_directory, **raster_props)
+            self.trackStack.add_track(raster_track)
+            if 'show_traces' in raster_props and raster_props['show_traces']==True:
+                trace_track = Trace(self.trackStack, project_directory=self.project_directory, **config['rasters'][-1])
+                raster_track.display_trace_signal.connect(trace_track.show_trace)
+                self.trackStack.add_track(trace_track)
         self.trackStack.initUI(vlines=config['vlines'])
-
 
         self.trackStack.new_current_position.connect(self.update_current_position)
         self.trackStack.new_current_position.connect(self.panelStack.update_current_position)
@@ -87,7 +90,7 @@ class MainWindow(QMainWindow):
 
 
     def initUI(self):
-
+        self.resize(1500, 768)
         stacks = QHBoxLayout()
         stacks.addWidget(self.panelStack)
         stacks.addWidget(self.trackStack)
@@ -133,7 +136,6 @@ def run():
     app = set_style(app)
 
     window = MainWindow()
-    window.resize(1500, 768)
     window.show()
     sys.exit(app.exec_())
 

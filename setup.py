@@ -25,6 +25,7 @@ setuptools.setup(
     install_requires=['PyQt5',
                       'numpy',
                       'cmapy',
+                      'pyqtgraph'
                       'opencv-python-headless',
                       'vidio>=0.0.3'], 
     url='https://github.com/jbohnslav/pose_annotator'
