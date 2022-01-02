@@ -39,7 +39,7 @@ class CheckableComboBox(QtWidgets.QComboBox):
         checked = item.checkState()==QtCore.Qt.Checked
         self.toggleSignal.emit(not checked, index.row())
 
-    def set_checked(self, checked, index):
+    def set_checked(self, index, checked):
         checkState = QtCore.Qt.Checked if checked else QtCore.Qt.Unchecked
         self.model().item(index,0).setCheckState(checkState)
 
