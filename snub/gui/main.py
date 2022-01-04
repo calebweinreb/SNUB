@@ -19,7 +19,7 @@ from snub.gui.tracks import TrackStack, Raster, Trace
 def set_style(app):
     # https://www.wenzhaodesign.com/devblog/python-pyside2-simple-dark-theme
     # button from here https://github.com/persepolisdm/persepolis/blob/master/persepolis/gui/palettes.py
-    app.setStyle(QStyleFactory.create("fusion"))
+    app.setStyle(QStyleFactory.create("Fusion"))
 
     darktheme = QtGui.QPalette()
     darktheme.setColor(QtGui.QPalette.Window, QtGui.QColor(45, 45, 45))
@@ -43,20 +43,21 @@ def set_style(app):
    
     
 
-class MainWindow(QMainWindow):
+class ProjectTab(QWidget):
     new_current_position = pyqtSignal(int)
 
-    def __init__(self, fps=30):
-        super(MainWindow, self).__init__()
-        self.fps = fps
+    def __init__(self, project_directory):
+        super().__init__()
         self.playing = False
-        self.current_position = 0
         
         # load config
-        self.project_directory = sys.argv[1]+'/'
+        self.project_directory = project_directory
         self.setWindowTitle('Systems neuro browser ({})'.format(sys.argv[1]))
-        config = json.load(open(self.project_directory+'config.json','r'))
+        config = json.load(open(os.path.join(self.project_directory,'config.json'),'r'))
 
+        self.fps = config['fps'] if 'fps' in config else 30
+        self.current_position = config['start_position'] if 'start_position' in config else 0
+        
         # panel stack
         self.panelStack = PanelStack(self)
         for video_props in config['videos']:
@@ -89,8 +90,8 @@ class MainWindow(QMainWindow):
         self.initUI()
 
 
+
     def initUI(self):
-        self.resize(1500, 900)
         stacks = QHBoxLayout()
         stacks.addWidget(self.panelStack)
         stacks.addWidget(self.trackStack)
@@ -101,12 +102,11 @@ class MainWindow(QMainWindow):
         buttons = QHBoxLayout()
         buttons.addWidget(self.play_button)
         
-        layout = QVBoxLayout()
+        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # self.setSizePolicy(sizePolicy)
+        layout = QVBoxLayout(self)
         layout.addLayout(stacks)
         layout.addLayout(buttons)
-        widget = QWidget()
-        widget.setLayout(layout)
-        self.setCentralWidget(widget)
 
     def update_current_position(self,position):
         self.current_position = position
@@ -131,11 +131,49 @@ class MainWindow(QMainWindow):
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.playing = False
 
+
+class MainWindow(QMainWindow):
+    def __init__(self, args):
+        super().__init__()
+        self.tabs = QTabWidget()
+        self.tabs.setTabsClosable(True)
+        self.tabs.tabCloseRequested.connect(self.close_current_tab)
+        self.setCentralWidget(self.tabs)
+        self.setWindowTitle('Systems Neuro Browser')
+
+        open_project = QAction("&Open Project", self)
+        open_project.setShortcut("Ctrl+O")
+        open_project.setStatusTip('Open Project')
+        open_project.triggered.connect(self.file_open)
+
+        mainMenu = self.menuBar()
+        fileMenu = mainMenu.addMenu('&File')
+        fileMenu.addAction(open_project)
+
+        for a in args:
+            if os.path.exists(a): 
+                self.open_project(a)
+
+
+    def close_current_tab(self, i):
+        # if there is only one tab do nothing
+        if self.tabs.count() > 1: self.tabs.removeTab(i)
+
+    def file_open(self):
+        project_directory = QFileDialog.getExistingDirectory(self, 'Open Project')
+        self.open_project(project_directory)
+
+    def open_project(self, project_directory):
+        name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
+        self.tabs.addTab(ProjectTab(project_directory), name)
+
+
 def run():
     app = QApplication(sys.argv)
     app = set_style(app)
 
-    window = MainWindow()
+    window = MainWindow(sys.argv[1:])
+    window.resize(1500, 900)
     window.show()
     sys.exit(app.exec_())
 

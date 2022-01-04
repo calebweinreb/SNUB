@@ -59,7 +59,7 @@ class Trace(QWidget):
         self.trace_label_margin = trace_label_margin
 
         assert data_path is not None and project_directory is not None
-        self.data = np.load(project_directory+'/'+data_path)
+        self.data = np.load(os.path.join(project_directory,data_path))
         self.visible_traces = initial_visible_traces
 
         if labels is not None: assert len(labels)==self.data.shape[0]
@@ -195,7 +195,7 @@ class Raster(QWidget):
         self.title_height = title_height
 
         assert data_path is not None and project_directory is not None
-        self.data = np.load(project_directory+'/'+data_path)
+        self.data = np.load(os.path.join(project_directory,data_path))
         self.row_order = np.arange(self.data.shape[0])
         self.update_image_data()
         self.initUI()
@@ -380,7 +380,7 @@ class TrackOverlay(QWidget):
 class TrackStack(QWidget):
     new_current_position = pyqtSignal(int)
 
-    def __init__(self, bounds=[0,1], zoom_gain=0.02, min_range=30):
+    def __init__(self, bounds=[0,1800], zoom_gain=0.02, min_range=30):
         super().__init__()
         self.zoom_gain = zoom_gain
         self.min_range = min_range
