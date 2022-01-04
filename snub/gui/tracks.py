@@ -193,6 +193,7 @@ class Raster(QWidget):
         self.title_margin = title_margin
         self.title_font_size = title_font_size
         self.title_height = title_height
+        self.has_trace_track = False
 
         assert data_path is not None and project_directory is not None
         self.data = np.load(os.path.join(project_directory,data_path))
@@ -203,12 +204,17 @@ class Raster(QWidget):
 
     def contextMenuEvent(self, event):
         contextMenu = QMenu(self)
-        trace_index = self.row_order[int(event.y()/self.height()*self.data.shape[0])]
-        display_trace_slot = lambda: self.display_trace_signal.emit(trace_index)
-        for name,slot in [('Dislay trace {}'.format(trace_index), display_trace_slot),
-                          ('Reorder by selection', self.reorder_by_selection),
-                          ('Restore original order', self.restore_original_order)]:
+        if self.has_trace_track:
+            trace_index = self.row_order[int(event.y()/self.height()*self.data.shape[0])]
+            display_trace_slot = lambda: self.display_trace_signal.emit(trace_index)
+            menu_options = [('Dislay trace {}'.format(trace_index), display_trace_slot),
+                            ('Reorder by selection', self.reorder_by_selection),
+                            ('Restore original order', self.restore_original_order)]
+        else:
+            menu_options = [('Reorder by selection', self.reorder_by_selection),
+                            ('Restore original order', self.restore_original_order)]
 
+        for name,slot in menu_options:
             label = QLabel(name)
             label.setStyleSheet("""
                 QLabel { background-color : #3E3E3E; padding: 10px 12px 10px 12px;}
@@ -402,6 +408,7 @@ class TrackStack(QWidget):
         for track in self.tracks:
             self.splitter.addWidget(track)
         hbox.addWidget(self.splitter)
+        hbox.setContentsMargins(0, 0, 0, 0)
         self.overlay = TrackOverlay(self, vlines=vlines)
         self.overlay.vlines['cursor'] = {'position':0, 'color':(250,250,250), 'linewidth':1}
         self.update_all()

@@ -69,9 +69,10 @@ class ProjectTab(QWidget):
         for raster_props in config['rasters']:
             raster_track = Raster(self.trackStack, project_directory=self.project_directory, **raster_props)
             self.trackStack.add_track(raster_track)
-            if 'show_traces' in raster_props and raster_props['show_traces']==True:
-                trace_track = Trace(self.trackStack, project_directory=self.project_directory, **config['rasters'][-1])
+            if ('show_traces' in raster_props and raster_props['show_traces']==True) or raster_props["name"]=="Neural activity":
+                trace_track = Trace(self.trackStack, project_directory=self.project_directory, **raster_props)
                 raster_track.display_trace_signal.connect(trace_track.show_trace)
+                raster_track.has_trace_track = True
                 self.trackStack.add_track(trace_track)
         self.trackStack.initUI(vlines=config['vlines'])
 
@@ -161,14 +162,17 @@ class MainWindow(QMainWindow):
         self.open_project(project_directory)
 
     def open_project(self, project_directory):
-        print(project_directory, os.path.sep)
         name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
-        self.tabs.addTab(ProjectTab(project_directory), name)
+        project_tab = ProjectTab(project_directory)
+        self.tabs.addTab(project_tab, name)
+        self.tabs.setCurrentWidget(project_tab)
 
 
 def run():
     app = QApplication(sys.argv)
     app = set_style(app)
+    icon_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'assets','app_icon.png')
+    app.setWindowIcon(QIcon(icon_path))
 
     window = MainWindow(sys.argv[1:])
     window.resize(1500, 900)
