@@ -289,15 +289,15 @@ class Timeline(QWidget):
         self.current_range = trackStack.current_range
         self.TICK_SPACING_OPTIONS = np.array([1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000])
         self.MAX_TICKS_VISIBLE = 20
-        self.HEIGHT = 30
+        self.HEIGHT = 50
         self.TICK_HEIGHT = 10
         self.TICK_LABEL_WIDTH = 100
         self.TICK_LABEL_MARGIN = 2
-        self.TICK_LABEL_HEIGHT = 10
+        self.TICK_LABEL_HEIGHT = 50
         self.initUI()
 
     def initUI(self):
-        self.setFixedHeight(self.HEIGHT)
+        self.resize(self.width(),self.HEIGHT)
         # Set Background
         pal = QPalette()
         pal.setColor(QPalette.Background, QColor(20,20,20))
@@ -413,13 +413,13 @@ class TrackStack(QWidget):
     def wheelEvent(self,event):
         # vertical motion -> zoom
         abs_event_pos = self.rel_to_abs(event.x())
-        delta_y = int(np.around(event.pixelDelta().y()/2))
+        delta_y = int(np.around(event.angleDelta().y()/2))
         scale_change = max(1+delta_y*self.zoom_gain, self.min_range/(self.current_range[1]-self.current_range[0]))
         new_range = [
             max(int((self.current_range[0]-abs_event_pos)*scale_change+abs_event_pos),self.bounds[0]),
             min(int((self.current_range[1]-abs_event_pos)*scale_change+abs_event_pos),self.bounds[1])]
         # horizontal motion -> pan
-        abs_delta = np.clip((-event.pixelDelta().x())/self.width()*(new_range[1]-new_range[0]),
+        abs_delta = np.clip((-event.angleDelta().x())/self.width()*(new_range[1]-new_range[0]),
             self.bounds[0]-new_range[0],self.bounds[1]-new_range[1])
         new_range = [ int(new_range[0]+abs_delta),int(new_range[1]+abs_delta)]
         # update range

@@ -52,7 +52,6 @@ class ProjectTab(QWidget):
         
         # load config
         self.project_directory = project_directory
-        self.setWindowTitle('Systems neuro browser ({})'.format(sys.argv[1]))
         config = json.load(open(os.path.join(self.project_directory,'config.json'),'r'))
 
         self.fps = config['fps'] if 'fps' in config else 30
@@ -101,9 +100,7 @@ class ProjectTab(QWidget):
         self.play_button.clicked.connect(self.toggle_play_state)
         buttons = QHBoxLayout()
         buttons.addWidget(self.play_button)
-        
-        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        # self.setSizePolicy(sizePolicy)
+
         layout = QVBoxLayout(self)
         layout.addLayout(stacks)
         layout.addLayout(buttons)
@@ -164,6 +161,7 @@ class MainWindow(QMainWindow):
         self.open_project(project_directory)
 
     def open_project(self, project_directory):
+        print(project_directory, os.path.sep)
         name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
         self.tabs.addTab(ProjectTab(project_directory), name)
 
