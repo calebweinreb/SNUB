@@ -414,7 +414,7 @@ class TrackOverlay(QWidget):
 class TrackStack(QWidget):
     new_current_position = pyqtSignal(int)
 
-    def __init__(self, bounds=[0,1800], zoom_gain=0.02, min_range=30):
+    def __init__(self, bounds=[0,1800], zoom_gain=0.005, min_range=30):
         super().__init__()
         self.zoom_gain = zoom_gain
         self.min_range = min_range
@@ -446,20 +446,23 @@ class TrackStack(QWidget):
         self.tracks.insert(0,track)
 
     def wheelEvent(self,event):
-        # vertical motion -> zoom
-        abs_event_pos = self.rel_to_abs(event.x())
-        delta_y = int(np.around(event.angleDelta().y()/2))
-        scale_change = max(1+delta_y*self.zoom_gain, self.min_range/(self.current_range[1]-self.current_range[0]))
-        new_range = [
-            max(int((self.current_range[0]-abs_event_pos)*scale_change+abs_event_pos),self.bounds[0]),
-            min(int((self.current_range[1]-abs_event_pos)*scale_change+abs_event_pos),self.bounds[1])]
-        # horizontal motion -> pan
-        abs_delta = np.clip((-event.angleDelta().x())/self.width()*(new_range[1]-new_range[0]),
-            self.bounds[0]-new_range[0],self.bounds[1]-new_range[1])
-        new_range = [ int(new_range[0]+abs_delta),int(new_range[1]+abs_delta)]
-        # update range
-        self.update_current_range(new_range=new_range)
+        if np.abs(event.angleDelta().y()) > np.abs(event.angleDelta().x()): 
+            # vertical motion -> zoom
+            abs_event_pos = self.rel_to_abs(event.x())
+            scale_change = max(1+event.angleDelta().y()*self.zoom_gain, self.min_range/(self.current_range[1]-self.current_range[0]))
+            new_range = [
+                max(int((self.current_range[0]-abs_event_pos)*scale_change+abs_event_pos),self.bounds[0]),
+                min(int((self.current_range[1]-abs_event_pos)*scale_change+abs_event_pos),self.bounds[1])]
+            self.update_current_range(new_range=new_range)
 
+        if np.abs(event.angleDelta().y()) < np.abs(event.angleDelta().x()): 
+            # horizontal motion -> pan
+            abs_delta = np.clip((-event.angleDelta().x())/self.width()*(self.current_range[1]-self.current_range[0]),
+                self.bounds[0]-self.current_range[0],self.bounds[1]-self.current_range[1])
+            new_range = [ int(self.current_range[0]+abs_delta),int(self.current_range[1]+abs_delta)]
+            self.update_current_range(new_range=new_range)
+
+        
 
     def mouseMoveEvent(self, event):
         position = int(self.rel_to_abs(event.x()))
