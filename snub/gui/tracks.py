@@ -165,6 +165,27 @@ class Trace(QWidget):
         xmin = current_range[0] + relative_yaxis_width*(current_range[1]-current_range[0])
         self.plotWidget.setXRange(xmin, current_range[1], padding=0)
 
+class AdjustColormapDialog(QDialog):
+    def __init__(self, parent, vmin, vmax):
+        super().__init__(parent)
+        self.parent = parent
+        self.vmin = QLineEdit(self,)
+        self.vmax = QLineEdit(self)
+        self.vmin.setText(str(vmin))
+        self.vmax.setText(str(vmax))
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self);
+        self.buttonBox.accepted.connect(self.update_colormap_range)
+        self.buttonBox.rejected.connect(lambda: self.hide())
+
+        layout = QFormLayout(self)
+        layout.addRow("Colormap min", self.vmin)
+        layout.addRow("Colormap max", self.vmax)
+        layout.addWidget(self.buttonBox)
+
+    def update_colormap_range(self):
+        self.parent.update_colormap_range(self.vmin.text(), self.vmax.text())
+
+
 class Raster(QWidget):
     display_trace_signal = QtCore.pyqtSignal(int)
     def __init__(self, trackStack, data_path=None, project_directory=None, height_ratio=1,
@@ -198,22 +219,22 @@ class Raster(QWidget):
         assert data_path is not None and project_directory is not None
         self.data = np.load(os.path.join(project_directory,data_path))
         self.row_order = np.arange(self.data.shape[0])
+        self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
         self.update_image_data()
         self.initUI()
 
 
     def contextMenuEvent(self, event):
-        contextMenu = QMenu(self)
+        menu_options = [('Adjust colormap range', self.show_adjust_colormap_dialog),
+                        ('Reorder by selection', self.reorder_by_selection),
+                        ('Restore original order', self.restore_original_order)]
+
         if self.has_trace_track:
             trace_index = self.row_order[int(event.y()/self.height()*self.data.shape[0])]
             display_trace_slot = lambda: self.display_trace_signal.emit(trace_index)
-            menu_options = [('Dislay trace {}'.format(trace_index), display_trace_slot),
-                            ('Reorder by selection', self.reorder_by_selection),
-                            ('Restore original order', self.restore_original_order)]
-        else:
-            menu_options = [('Reorder by selection', self.reorder_by_selection),
-                            ('Restore original order', self.restore_original_order)]
+            menu_options.insert(0,('Dislay trace {}'.format(trace_index), display_trace_slot))
 
+        contextMenu = QMenu(self)
         for name,slot in menu_options:
             label = QLabel(name)
             label.setStyleSheet("""
@@ -268,6 +289,17 @@ class Raster(QWidget):
         self.current_range = current_range
         self.update()
 
+    def update_colormap_range(self, vmin, vmax):
+        try:
+            vmin,vmax = float(vmin),float(vmax)
+            if vmin < vmax:
+                self.vmin,self.vmax = vmin,vmax
+                self.update_image_data()
+        except:
+            pass
+
+    def show_adjust_colormap_dialog(self):
+        self.adjust_colormap_dialog.show()
 
     def paintEvent(self, event):
         qp = QPainter(self)
@@ -283,10 +315,6 @@ class Raster(QWidget):
             qp.drawText(self.label_margin, center_height-self.max_label_height//2, 
                 self.max_label_width, self.max_label_height, Qt.AlignVCenter, label)
 
-        # qp.rotate(90)
-        # qp.setPen(QColor(*self.title_color))
-        # qp.setFont(QFont("Helvetica [Cronyx]", self.title_font_size))
-        # qp.drawText(self.title_margin, 0, self.title_margin+self.title_height, self.height(), Qt.AlignVCenter, self.name)
 
 
 class Timeline(QWidget):
