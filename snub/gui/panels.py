@@ -97,8 +97,7 @@ class VideoFrame(QtWidgets.QGraphicsView):
         if type(event)==QtWidgets.QGestureEvent:
             gesture = event.gesture(Qt.PinchGesture)
             scale = gesture.scaleFactor()
-            last_scale = gesture.lastScaleFactor()
-            self.scale(scale, last_scale)
+            self.scale(scale, scale)
         return out
 
     def update_current_position(self, value):
@@ -121,25 +120,14 @@ class VideoFrame(QtWidgets.QGraphicsView):
             self.scale(factor, factor)
             self._zoom = 0
 
-    def adjust_aspect_ratio(self):
-        if not hasattr(self, 'vid'):
-            raise ValueError('Trying to set GraphicsView aspect ratio before video loaded.')
-        if not hasattr(self.vid, 'width'):
-            self.vid.width, self.vid.height = self.frame.shape[1], self.frame.shape[0]
-        video_aspect = self.vid.width / self.vid.height
-        H, W = self.height(), self.width()
-        new_width = video_aspect * H
-        if new_width < W:
-            self.setFixedWidth(new_width)
-        new_height = W / self.vid.width * self.vid.height
-        if new_height < H:
-            self.setFixedHeight(new_height)
 
     def show_image(self, array):
         qpixmap = numpy_to_qpixmap(array)
         # THIS LINE CHANGES THE SCENE WIDTH AND HEIGHT
         self._photo.setPixmap(qpixmap)
         self.update()
+
+
 
 class PanelStack(QWidget):
     def __init__(self, parent):
