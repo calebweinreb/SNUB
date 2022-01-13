@@ -102,7 +102,7 @@ class VideoFrame(QtWidgets.QGraphicsView):
 
     def update_current_position(self, value):
         value = int(np.clip(value, 0, len(self.frame_index)))
-        self.frame = self.vid[value] # self.vid[self.frame_index[value]]
+        self.frame = self.vid[self.frame_index[value]]
         self.show_image(self.frame)
         
     def fitInView(self, scale=True):
