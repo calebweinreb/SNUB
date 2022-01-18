@@ -184,13 +184,14 @@ class AdjustColormapDialog(QDialog):
 
     def update_colormap_range(self):
         self.parent.update_colormap_range(self.vmin.text(), self.vmax.text())
+        self.hide()
 
 
 class Raster(QWidget):
     display_trace_signal = QtCore.pyqtSignal(int)
     def __init__(self, trackStack, data_path=None, project_directory=None, height_ratio=1,
                  name="", vmin=0, vmax=1, colormap='viridis', downsample_options=np.array([1,10,100]), 
-                 max_display_resolution=2000, labels=[], label_margin=10, max_label_width=100, 
+                 max_display_resolution=2000, labels=[], label_margin=10, max_label_width=300, 
                  max_label_height=20, label_color=(255,255,255), label_font_size=12,
                  title_color=(255,255,255), title_margin=5, title_font_size=14, title_height=30, 
                  **kwargs):
