@@ -189,6 +189,7 @@ class MainWindow(QMainWindow):
         open_project.triggered.connect(self.file_open)
 
         mainMenu = self.menuBar()
+        mainMenu.setNativeMenuBar(False)
         fileMenu = mainMenu.addMenu('&File')
         fileMenu.addAction(open_project)
 
