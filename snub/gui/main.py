@@ -47,6 +47,12 @@ def complete_config(config):
     if not 'scatters' in config: config['scatters'] = []
     if not 'rasters' in config: config['rasters'] = []
     if not 'videos' in config: config['videos'] = []
+
+    for raster_props in config['rasters']:
+        if raster_props['name']=='Neural activity':
+            if not 'show_traces' in raster_props:
+                raster_props['show_traces'] = True
+                
     return config
    
     
