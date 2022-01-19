@@ -75,7 +75,7 @@ class Trace(QWidget):
         self.dropDown = CheckableComboBox()
         self.dropDown.toggleSignal.connect(self.toggle_trace)
 
-        self.plotWidget = pg.plot(title="Three plot curves")
+        self.plotWidget = pg.plot()
         self.plotWidget.hideAxis('bottom')
         self.plotWidget.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.plotWidget.showGrid(x=False, y=True, alpha = 0.5)  
@@ -381,11 +381,12 @@ class TrackOverlay(QWidget):
         self.current_range = trackStack.current_range
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
-    def set_selection_intervals(self, selection_mask, bounds):
+    def update_selection_mask(self, selection_mask, bounds):
         diff = np.diff(np.pad(selection_mask, (1,1)))
         starts = (diff>0).nonzero()[0]+bounds[0]
         ends = (diff<0).nonzero()[0]+bounds[0]
         self.selection_intervals = list(zip(starts,ends))
+        self.update()
 
     def paintEvent(self, event):
         self.resize(self.trackStack.size())
@@ -414,12 +415,14 @@ class TrackOverlay(QWidget):
 
 class TrackStack(QWidget):
     new_current_position = pyqtSignal(int)
+    selection_change = pyqtSignal(list, list)
 
-    def __init__(self, bounds=[0,1800], zoom_gain=0.005, min_range=30):
+    def __init__(self, bounds=None, zoom_gain=0.005, min_range=30):
         super().__init__()
+        assert bounds is not None
+        self.bounds = bounds
         self.zoom_gain = zoom_gain
         self.min_range = min_range
-        self.bounds = bounds
         self.current_range = self.bounds
         self.tracks = [Timeline(self)]
         self.selection_mask = np.zeros(bounds[1]-bounds[0])
@@ -440,7 +443,8 @@ class TrackStack(QWidget):
         hbox.setContentsMargins(0, 0, 0, 0)
         self.overlay = TrackOverlay(self, vlines=vlines)
         self.overlay.vlines['cursor'] = {'position':0, 'color':(250,250,250), 'linewidth':1}
-        self.update_all()
+        self.update_current_range()
+        self.overlay.update()
 
 
     def add_track(self, track):
@@ -480,10 +484,8 @@ class TrackStack(QWidget):
             position = int(self.rel_to_abs(event.x()))
             modifiers = QtWidgets.QApplication.keyboardModifiers()
             if modifiers == QtCore.Qt.ShiftModifier:
-                self.update_selection_mask(interval=(position,position+1),value=1)
                 self.selection_drag_start(position, 1)
             elif modifiers == QtCore.Qt.ControlModifier:
-                self.update_selection_mask(interval=(position,position+1),value=0)
                 self.selection_drag_start(position, -1)
             else:
                 self.new_current_position.emit(position)
@@ -502,7 +504,7 @@ class TrackStack(QWidget):
     def selection_drag_move(self, position, mode):
         if self.selection_drag_mode == mode:
             s,e = sorted([self.selection_drag_initial_position,position])
-            self.update_selection_mask(interval=(s,e), value=max(mode,0))
+            self.selection_change.emit([(s,e)], [max(mode,0)])
 
     def rel_to_abs(self,r):
         return r/self.width()*(self.current_range[1]-self.current_range[0])+self.current_range[0]
@@ -519,15 +521,7 @@ class TrackStack(QWidget):
         self.overlay.vlines['cursor']['position'] = position
         self.overlay.update()
 
-    def update_selection_mask(self, interval=(0,0), value=0):
-        if interval[0]-self.bounds[0] < 0: return
-        self.selection_mask[interval[0]-self.bounds[0]:interval[1]-self.bounds[0]] = value 
-        self.overlay.set_selection_intervals(self.selection_mask, self.bounds)
-        self.overlay.update()
-
-    def update_all(self):
-        self.update_current_range()
-        self.update_selection_mask()
-        self.overlay.update()
-
+    def update_selection_mask(self, selection_mask):
+        self.selection_mask = selection_mask
+        self.overlay.update_selection_mask(self.selection_mask, self.bounds)
 

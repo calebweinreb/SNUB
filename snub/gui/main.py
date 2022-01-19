@@ -11,7 +11,7 @@ import numpy as np
 import cmapy
 import time
 
-from snub.gui.panels import PanelStack, VideoFrame
+from snub.gui.panels import PanelStack, VideoFrame, ScatterPanel
 from snub.gui.tracks import TrackStack, Raster, Trace
 
 
@@ -40,6 +40,14 @@ def set_style(app):
     darktheme.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, QtGui.QColor(32, 32, 32))
     app.setPalette(darktheme)
     return app
+
+def complete_config(config):
+    if not 'fps' in config: config['fps'] = 30
+    if not 'start_position' in config: config['start_position'] = 0
+    if not 'scatters' in config: config['scatters'] = []
+    if not 'rasters' in config: config['rasters'] = []
+    if not 'videos' in config: config['videos'] = []
+    return config
    
     
 
@@ -53,41 +61,56 @@ class ProjectTab(QWidget):
         # load config
         self.project_directory = project_directory
         config = json.load(open(os.path.join(self.project_directory,'config.json'),'r'))
-
-        self.fps = config['fps'] if 'fps' in config else 30
-        self.current_position = config['start_position'] if 'start_position' in config else 0
+        config = complete_config(config)
+  
+        self.bounds = config['bounds']
+        self.fps = config['fps']
+        self.current_position = config['start_position']
+        self.selection_mask = np.zeros(self.bounds[1]-self.bounds[0])
         
-        # panel stack
-        self.panelStack = PanelStack(self)
+        # create major gui elements
+        self.panelStack = PanelStack()
+        self.trackStack = TrackStack(bounds=self.bounds)
+
+        # initialize scatter plots
+        for scatter_props in config['scatters']:
+            scatter_panel = ScatterPanel(project_directory=self.project_directory, bounds=self.bounds, **scatter_props)
+            self.panelStack.add_panel(scatter_panel)
+            scatter_panel.selection_change.connect(self.update_selection_mask)
+
+        # initialize videos
         for video_props in config['videos']:
             video_frame = VideoFrame(project_directory=self.project_directory, **video_props)
             self.panelStack.add_panel(video_frame)
-        self.panelStack.initUI()
+        
 
-        # create track stack
-        self.trackStack = TrackStack(bounds=config['bounds'])
+        # initialize rasters
         for raster_props in config['rasters']:
-            raster_track = Raster(self.trackStack, project_directory=self.project_directory, **raster_props)
-            self.trackStack.add_track(raster_track)
-            if ('show_traces' in raster_props and raster_props['show_traces']==True) or raster_props["name"]=="Neural activity":
+            track = Raster(self.trackStack, project_directory=self.project_directory, **raster_props)
+            self.trackStack.add_track(track)
+            if 'show_traces' in raster_props and raster_props['show_traces']==True:
                 trace_track = Trace(self.trackStack, project_directory=self.project_directory, **raster_props)
-                raster_track.display_trace_signal.connect(trace_track.show_trace)
-                raster_track.has_trace_track = True
+                track.display_trace_signal.connect(trace_track.show_trace)
+                track.has_trace_track = True
                 self.trackStack.add_track(trace_track)
-        self.trackStack.initUI(vlines=config['vlines'])
 
+        # timer for live play
+        self.timer = QTimer(self)
+
+        # connect signals and slots
         self.trackStack.new_current_position.connect(self.update_current_position)
         self.trackStack.new_current_position.connect(self.panelStack.update_current_position)
+        self.trackStack.selection_change.connect(self.update_selection_mask)
         self.new_current_position.connect(self.trackStack.update_current_position)
         self.new_current_position.connect(self.panelStack.update_current_position)
         self.new_current_position.connect(self.update_current_position)
-
-        # timer for video play
-        self.timer = QTimer(self)
         self.timer.timeout.connect(self.increment_position)
 
-        # build layout
+        # initialize layout
+        self.trackStack.initUI(vlines=config['vlines'])
+        self.panelStack.initUI()
         self.initUI()
+        self.new_current_position.emit(self.current_position)
 
 
 
@@ -99,12 +122,33 @@ class ProjectTab(QWidget):
         self.play_button = QPushButton()
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.play_button.clicked.connect(self.toggle_play_state)
+        self.deselect_button = QPushButton('Deselect All')
+        self.deselect_button.clicked.connect(self.deselect_all)
         buttons = QHBoxLayout()
         buttons.addWidget(self.play_button)
+        buttons.addWidget(self.deselect_button)
 
         layout = QVBoxLayout(self)
         layout.addLayout(stacks)
         layout.addLayout(buttons)
+
+
+    def deselect_all(self):
+        self.update_selection_mask([self.bounds], [0])
+
+    def update_selection_mask(self, intervals, values):
+        for interval,value in zip(intervals,values):
+            shifted_interval = (int(interval[0]-self.bounds[0]), int(interval[1]-self.bounds[0]))
+            shifted_interval = (max(shifted_interval[0],0), min(shifted_interval[1],len(self.selection_mask)-1))
+            if interval[1] > interval[0]: self.selection_mask[shifted_interval[0]:shifted_interval[1]] = value 
+        self.panelStack.update_selection_mask(self.selection_mask)
+        self.trackStack.update_selection_mask(self.selection_mask)
+
+
+        # if interval[0]-self.bounds[0] < 0: return
+        # self.selection_mask[interval[0]-self.bounds[0]:interval[1]-self.bounds[0]] = value 
+        # self.overlay.set_selection_intervals(self.selection_mask, self.bounds)
+        # self.overlay.update()
 
     def update_current_position(self,position):
         self.current_position = position
