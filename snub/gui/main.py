@@ -52,10 +52,27 @@ def complete_config(config):
         if raster_props['name']=='Neural activity':
             if not 'show_traces' in raster_props:
                 raster_props['show_traces'] = True
-                
+
     return config
    
     
+def getExistingDirectories(parent, *args, **kwargs):
+    """
+    Workaround for selecting multiple directories
+    adopted from http://www.qtcentre.org/threads/34226-QFileDialog-select-multiple-directories?p=158482#post158482
+    This also give control about hidden folders
+    """
+    dlg = QFileDialog(parent, *args, **kwargs)
+    dlg.setOption(dlg.DontUseNativeDialog, True)
+    dlg.setOption(dlg.HideNameFilterDetails, True)
+    dlg.setFileMode(dlg.Directory)
+    dlg.setOption(dlg.ShowDirsOnly, True)
+    dlg.findChildren(QListView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
+    dlg.findChildren(QTreeView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
+    if dlg.exec_() == QDialog.Accepted:
+        return dlg.selectedFiles()
+    return [str(), ]
+
 
 class ProjectTab(QWidget):
     new_current_position = pyqtSignal(int)
@@ -208,9 +225,18 @@ class MainWindow(QMainWindow):
         # if there is only one tab do nothing
         if self.tabs.count() > 1: self.tabs.removeTab(i)
 
+
     def file_open(self):
-        project_directory = QFileDialog.getExistingDirectory(self, 'Open Project')
-        self.open_project(project_directory)
+        project_directories = getExistingDirectories(self)
+        error_directories = []
+        for project_dir in project_directories:
+            if os.path.exists(os.path.join(project_dir,'config.json')):
+                self.open_project(project_dir)
+            else: error_directories.append(project_dir)
+        if len(error_directories) > 0:
+            QtWidgets.QMessageBox.about(self, '', '\n\n'.join(
+                ['The following directories lack a config file.']+error_directories))
+
 
     def open_project(self, project_directory):
         name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
