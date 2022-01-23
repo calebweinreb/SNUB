@@ -231,8 +231,9 @@ class ScatterPanel(QWidget):
         self.plot.addItem(self.scatter)
         self.plot.addItem(self.current_node_scatter)
         self.plot.addItem(self.selection_rect)
-        #self.plot.hideAxis('bottom')
-        #self.plot.hideAxis('left')
+        self.plot.hideAxis('bottom')
+        self.plot.hideAxis('left')
+        self.plot.setAspectLocked(True)
 
         xmin = self.data[:,0].min()
         xmax = self.data[:,0].max()
