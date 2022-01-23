@@ -45,7 +45,6 @@ def float_to_uint8(image: np.ndarray) -> np.ndarray:
 
 
 
-
 class VideoFrame(QtWidgets.QGraphicsView):
      
     def __init__(self, project_directory=None, video_path=None, frame_index_path=None, name=""):

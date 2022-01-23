@@ -43,7 +43,7 @@ def set_style(app):
 
 def complete_config(config):
     if not 'fps' in config: config['fps'] = 30
-    if not 'start_position' in config: config['start_position'] = 0
+    if not 'start_position' in config: config['start_position'] = config['bounds'][0]+10
     if not 'scatters' in config: config['scatters'] = []
     if not 'rasters' in config: config['rasters'] = []
     if not 'videos' in config: config['videos'] = []
@@ -93,7 +93,7 @@ class ProjectTab(QWidget):
         
         # create major gui elements
         self.panelStack = PanelStack()
-        self.trackStack = TrackStack(bounds=self.bounds)
+        self.trackStack = TrackStack(bounds=self.bounds, fps=self.fps, vlines=config['vlines'])
 
         # initialize scatter plots
         for scatter_props in config['scatters']:
@@ -130,7 +130,7 @@ class ProjectTab(QWidget):
         self.timer.timeout.connect(self.increment_position)
 
         # initialize layout
-        self.trackStack.initUI(vlines=config['vlines'])
+        self.trackStack.initUI()
         self.panelStack.initUI()
         self.initUI()
         self.new_current_position.emit(self.current_position)
