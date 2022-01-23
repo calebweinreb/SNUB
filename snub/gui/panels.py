@@ -44,26 +44,6 @@ def float_to_uint8(image: np.ndarray) -> np.ndarray:
     return image
 
 
-class ClickableScene(QGraphicsScene):
-    click = QtCore.pyqtSignal(QGraphicsSceneMouseEvent)
-    move = QtCore.pyqtSignal(QGraphicsSceneMouseEvent)
-    release = QtCore.pyqtSignal(QGraphicsSceneMouseEvent)
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        
-    def mousePressEvent(self, event):
-        if event.buttons():
-            self.click.emit(event)
-            event.ignore()
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        self.move.emit(event)
-        super().mouseMoveEvent(event)
-        
-    def mouseReleaseEvent(self, event):
-        self.release.emit(event)
-        super().mouseReleaseEvent(event)
 
 
 class VideoFrame(QtWidgets.QGraphicsView):
@@ -82,7 +62,7 @@ class VideoFrame(QtWidgets.QGraphicsView):
 
 
     def initUI(self):  
-        self.scene = ClickableScene(self) # QtWidgets.QGraphicsScene(self)
+        self.scene = QtWidgets.QGraphicsScene(self)
         self._photo = QtWidgets.QGraphicsPixmapItem()
         self.scene.addItem(self._photo)
         self.setScene(self.scene)
@@ -93,6 +73,8 @@ class VideoFrame(QtWidgets.QGraphicsView):
         self.setResizeAnchor(QtWidgets.QGraphicsView.AnchorUnderMouse)
         self.setStyleSheet("background:transparent;")
         self.setMouseTracking(True)  
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
     def event(self, event):
         out = super(VideoFrame, self).event(event)
@@ -316,7 +298,7 @@ class PanelStack(QWidget):
         for panel in self.panels:
             splitter.addWidget(panel)
         hbox.addWidget(splitter)
-        hbox.setContentsMargins(0, 0, 0, 0)
+        hbox.setContentsMargins(5, 0, 10, 0)
 
 
     def update_current_position(self,position):

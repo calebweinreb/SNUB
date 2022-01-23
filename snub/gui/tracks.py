@@ -440,7 +440,7 @@ class TrackStack(QWidget):
         for track in self.tracks:
             splitter.addWidget(track)
         hbox.addWidget(splitter)
-        hbox.setContentsMargins(0, 0, 0, 0)
+        hbox.setContentsMargins(5, 0, 5, 0)
         self.overlay = TrackOverlay(self, vlines=vlines)
         self.overlay.vlines['cursor'] = {'position':0, 'color':(250,250,250), 'linewidth':1}
         self.update_current_range()
