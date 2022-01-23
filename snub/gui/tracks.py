@@ -436,10 +436,10 @@ class TrackStack(QWidget):
         self.setSizePolicy(sizePolicy)
 
         hbox = QHBoxLayout(self)
-        self.splitter = QSplitter(Qt.Vertical)
+        splitter = QSplitter(Qt.Vertical)
         for track in self.tracks:
-            self.splitter.addWidget(track)
-        hbox.addWidget(self.splitter)
+            splitter.addWidget(track)
+        hbox.addWidget(splitter)
         hbox.setContentsMargins(0, 0, 0, 0)
         self.overlay = TrackOverlay(self, vlines=vlines)
         self.overlay.vlines['cursor'] = {'position':0, 'color':(250,250,250), 'linewidth':1}

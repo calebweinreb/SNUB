@@ -138,9 +138,11 @@ class ProjectTab(QWidget):
 
 
     def initUI(self):
-        stacks = QHBoxLayout()
-        stacks.addWidget(self.panelStack)
-        stacks.addWidget(self.trackStack)
+
+
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.addWidget(self.panelStack)
+        splitter.addWidget(self.trackStack)
 
         self.play_button = QPushButton()
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -152,7 +154,7 @@ class ProjectTab(QWidget):
         buttons.addWidget(self.deselect_button)
 
         layout = QVBoxLayout(self)
-        layout.addLayout(stacks)
+        layout.addWidget(splitter)
         layout.addLayout(buttons)
 
 

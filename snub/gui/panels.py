@@ -309,10 +309,14 @@ class PanelStack(QWidget):
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(1)
         self.setSizePolicy(sizePolicy)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 5, 0, 5)
+
+        hbox = QHBoxLayout(self)
+        splitter = QSplitter(Qt.Vertical)
         for panel in self.panels:
-            layout.addWidget(panel)
+            splitter.addWidget(panel)
+        hbox.addWidget(splitter)
+        hbox.setContentsMargins(0, 0, 0, 0)
+
 
     def update_current_position(self,position):
         for panel in self.panels:
