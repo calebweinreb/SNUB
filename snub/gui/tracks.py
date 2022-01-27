@@ -474,7 +474,7 @@ class TrackOverlay(QWidget):
                         Qt.AlignLeft, label)
                         
 
-        qp.setPen(QPen(QColor(255,255,255,150), 1))
+        qp.setPen(Qt.NoPen)
         qp.setBrush(QBrush(QColor(255,255,255,100), Qt.SolidPattern))
         for s,e in self.selection_intervals:
             s_rel = self.trackStack.abs_to_rel(s)

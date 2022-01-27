@@ -230,15 +230,17 @@ class ScatterPanel(QWidget):
 
 
     def update_current_position(self, value):
-        current_points_mask = np.all([self.data[:,2]<=value, self.data[:,3]>=value],axis=0)
+        current_points_mask = np.all([self.data[:,2]<=value, self.data[:,3]>value],axis=0)
         current_points_pos = self.data[current_points_mask,:2]
         self.current_node_scatter.setData(pos=current_points_pos)
 
 
-    def point_clicked(self, points, event):
+    def point_clicked(self, scatter, points):
         modifiers = QtWidgets.QApplication.keyboardModifiers()
         if not modifiers in [QtCore.Qt.ShiftModifier, QtCore.Qt.ControlModifier]:
-            print('!', points.getData())
+            index = points[0].index()
+            new_position = self.data[index,2:].mean()
+            self.new_current_position.emit(new_position)
 
     def drag_event(self, event, modifiers):
         position = self.viewBox.mapSceneToView(event.scenePos())
@@ -259,7 +261,6 @@ class ScatterPanel(QWidget):
         bottom_right = np.maximum(position, self.position_at_drag_start)
         self.selection_rect.update_location(top_left, bottom_right-top_left)
 
-        
         if modifiers == QtCore.Qt.ShiftModifier: selection_value = 1
         if modifiers == QtCore.Qt.ControlModifier: selection_value = 0
         enclosed_points = np.all([self.data[:,:2]>=top_left, self.data[:,:2]<=bottom_right],axis=0).all(1).nonzero()[0]

@@ -75,12 +75,23 @@ def getExistingDirectories(parent, *args, **kwargs):
     return [str(), ]
 
 
+class Slider(QSlider):
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            x = e.pos().x()
+            value = (self.maximum() - self.minimum()) * x / self.width() + self.minimum()
+            self.setValue(np.around(value))
+        else:
+            return super().mousePressEvent(self, e)
+
+        
 class ProjectTab(QWidget):
     new_current_position = pyqtSignal(int)
 
     def __init__(self, project_directory):
         super().__init__()
         self.playing = False
+        self.play_speed = 1
         
         # load config
         self.project_directory = project_directory
@@ -101,6 +112,7 @@ class ProjectTab(QWidget):
             scatter_panel = ScatterPanel(project_directory=self.project_directory, bounds=self.bounds, **scatter_props)
             self.panelStack.add_panel(scatter_panel)
             scatter_panel.selection_change.connect(self.update_selection_mask)
+            scatter_panel.new_current_position.connect(self.update_current_position)
 
         # initialize videos
         for video_props in config['videos']:
@@ -120,12 +132,19 @@ class ProjectTab(QWidget):
         # timer for live play
         self.timer = QTimer(self)
 
+        # controls along bottom row
+        self.play_button = QPushButton()
+        self.speed_slider = Slider(Qt.Horizontal)
+        self.speed_label = QLabel()
+        self.deselect_button = QPushButton('Deselect All')
+
         # connect signals and slots
+        self.deselect_button.clicked.connect(self.deselect_all)
+        self.speed_slider.valueChanged.connect(self.change_play_speed)
+        self.play_button.clicked.connect(self.toggle_play_state)
         self.trackStack.new_current_position.connect(self.update_current_position)
         self.trackStack.new_current_position.connect(self.panelStack.update_current_position)
         self.trackStack.selection_change.connect(self.update_selection_mask)
-        self.new_current_position.connect(self.trackStack.update_current_position)
-        self.new_current_position.connect(self.panelStack.update_current_position)
         self.new_current_position.connect(self.update_current_position)
         self.timer.timeout.connect(self.increment_position)
 
@@ -142,19 +161,32 @@ class ProjectTab(QWidget):
         splitter.addWidget(self.panelStack)
         splitter.addWidget(self.trackStack)
 
-        self.play_button = QPushButton()
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.play_button.clicked.connect(self.toggle_play_state)
-        self.deselect_button = QPushButton('Deselect All')
-        self.deselect_button.clicked.connect(self.deselect_all)
+        self.speed_label.setText('1X')
+        self.speed_label.setMinimumWidth(35)
+        self.speed_slider.setMinimum(0)
+        self.speed_slider.setMaximum(7)
+        self.speed_slider.setValue(0)
+        self.speed_slider.setTickPosition(QSlider.TicksBothSides)
+        self.speed_slider.setTickInterval(1)
+        self.speed_slider.setMaximumWidth(150)
+        self.deselect_button.setMaximumWidth(100)
+
         buttons = QHBoxLayout()
         buttons.addWidget(self.play_button)
+        buttons.addWidget(self.speed_label)
+        buttons.addWidget(self.speed_slider)
+        buttons.addStretch(0)
         buttons.addWidget(self.deselect_button)
 
         layout = QVBoxLayout(self)
         layout.addWidget(splitter)
+        layout.addWidget(splitter)
         layout.addLayout(buttons)
 
+    def change_play_speed(self, log2_speed):
+        self.play_speed = int(2**log2_speed)
+        self.speed_label.setText('{}X'.format(self.play_speed))
 
     def deselect_all(self):
         self.update_selection_mask([self.bounds], [0])
@@ -175,9 +207,11 @@ class ProjectTab(QWidget):
 
     def update_current_position(self,position):
         self.current_position = position
+        self.trackStack.update_current_position(position)
+        self.panelStack.update_current_position(position)
 
     def increment_position(self):
-        new_position = self.current_position + 1
+        new_position = self.current_position + self.play_speed
         if new_position >= self.trackStack.bounds[1]:
             new_position = self.trackStack.bounds[0]
         self.new_current_position.emit(new_position)
