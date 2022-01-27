@@ -224,7 +224,7 @@ class ScatterPanel(QWidget):
         xmax_padded = xmax + (xmax-xmin)*.02
         ymin_padded = ymin - (ymax-ymin)*.02
         ymax_padded = ymax + (ymax-ymin)*.02
-        self.viewBox.setLimits(xMin=xmin_padded, xMax=xmax_padded, yMin=ymin_padded, yMax=ymax_padded)
+        #self.viewBox.setLimits(xMin=xmin_padded, xMax=xmax_padded, yMin=ymin_padded, yMax=ymax_padded)
         if self.xlim is not None: self.plot.setXRange(max(self.xlim[0],xmin_padded),min(self.xlim[1],xmax_padded))
         if self.ylim is not None: self.plot.setYRange(max(self.ylim[0],ymin_padded),min(self.ylim[1],ymax_padded))
 

@@ -138,8 +138,6 @@ class ProjectTab(QWidget):
 
 
     def initUI(self):
-
-
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self.panelStack)
         splitter.addWidget(self.trackStack)
@@ -204,47 +202,64 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
-        self.tabs.tabCloseRequested.connect(self.close_current_tab)
+        self.tabs.tabCloseRequested.connect(self.close_tab)
         self.setCentralWidget(self.tabs)
         self.setWindowTitle('Systems Neuro Browser')
 
         open_project = QAction("&Open Project", self)
         open_project.setShortcut("Ctrl+O")
-        open_project.setStatusTip('Open Project')
         open_project.triggered.connect(self.file_open)
+
+        reload_data = QAction("&Reload Data", self)
+        reload_data.setShortcut("Ctrl+R")
+        reload_data.triggered.connect(self.file_reload)
+
+        save_layout = QAction("&Layout", self)
+        save_layout.triggered.connect(self.file_save_layout)
 
         mainMenu = self.menuBar()
         mainMenu.setNativeMenuBar(False)
         fileMenu = mainMenu.addMenu('&File')
         fileMenu.addAction(open_project)
+        fileMenu.addAction(reload_data)
+        saveMenu = fileMenu.addMenu('&Save...')
+        saveMenu.addAction(save_layout)
 
         for a in args:
             if os.path.exists(a): 
                 self.open_project(a)
 
-
-    def close_current_tab(self, i):
-        # if there is only one tab do nothing
-        if self.tabs.count() > 1: self.tabs.removeTab(i)
-
+    def close_tab(self, i):
+        self.tabs.removeTab(i)
 
     def file_open(self):
         project_directories = getExistingDirectories(self)
         error_directories = []
         for project_dir in project_directories:
-            if os.path.exists(os.path.join(project_dir,'config.json')):
-                self.open_project(project_dir)
-            else: error_directories.append(project_dir)
+            if len(project_dir)>0:
+                if os.path.exists(os.path.join(project_dir,'config.json')):
+                    self.open_project(project_dir)
+                else: error_directories.append(project_dir)
         if len(error_directories) > 0:
             QtWidgets.QMessageBox.about(self, '', '\n\n'.join(
                 ['The following directories lack a config file.']+error_directories))
+
+    def file_reload(self):
+        current_index = self.tabs.currentIndex()
+        current_tab = self.tabs.currentWidget()
+        project_dir = current_tab.project_directory
+        self.close_tab(current_index)
+        self.open_project(project_dir)
+
+    def file_save_layout(self):
+        print('save')
 
 
     def open_project(self, project_directory):
         name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
         project_tab = ProjectTab(project_directory)
         self.tabs.addTab(project_tab, name)
-        self.tabs.setCurrentWidget(project_tab)
+        self.tabs.currentWidget()
 
 
 def run():

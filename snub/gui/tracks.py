@@ -523,6 +523,7 @@ class TrackStack(QWidget):
         self.setSizePolicy(sizePolicy)
 
         hbox = QHBoxLayout(self)
+        
         splitter = QSplitter(Qt.Vertical)
         for track in self.tracks:
             splitter.addWidget(track)
