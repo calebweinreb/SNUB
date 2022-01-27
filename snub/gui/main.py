@@ -47,6 +47,7 @@ def complete_config(config):
     if not 'scatters' in config: config['scatters'] = []
     if not 'rasters' in config: config['rasters'] = []
     if not 'videos' in config: config['videos'] = []
+    if not 'vlines' in config: config['vlines'] = {}
 
     for raster_props in config['rasters']:
         if raster_props['name']=='Neural activity':
@@ -105,7 +106,6 @@ class ProjectTab(QWidget):
         for video_props in config['videos']:
             video_frame = VideoFrame(project_directory=self.project_directory, **video_props)
             self.panelStack.add_panel(video_frame)
-        
 
         # initialize rasters
         for raster_props in config['rasters']:
@@ -259,7 +259,7 @@ class MainWindow(QMainWindow):
         name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
         project_tab = ProjectTab(project_directory)
         self.tabs.addTab(project_tab, name)
-        self.tabs.currentWidget()
+        self.tabs.setCurrentWidget(project_tab)
 
 
 def run():

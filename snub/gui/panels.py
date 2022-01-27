@@ -238,7 +238,7 @@ class ScatterPanel(QWidget):
     def point_clicked(self, points, event):
         modifiers = QtWidgets.QApplication.keyboardModifiers()
         if not modifiers in [QtCore.Qt.ShiftModifier, QtCore.Qt.ControlModifier]:
-            print('!', type(points))
+            print('!', points.getData())
 
     def drag_event(self, event, modifiers):
         position = self.viewBox.mapSceneToView(event.scenePos())

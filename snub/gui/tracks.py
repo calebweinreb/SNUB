@@ -52,7 +52,7 @@ class CheckableComboBox(QtWidgets.QComboBox):
 
 class Trace(QWidget):
     def __init__(self, trackStack, data_path=None, project_directory=None, height_ratio=1, 
-                 labels=None, colors=None, initial_visible_traces=set([0]), 
+                 labels=None, colors=None, initial_visible_traces=[0], 
                  controls_padding_right=10, controls_padding_top=5, trace_label_margin=4,
                  **kwargs):
 
@@ -66,7 +66,7 @@ class Trace(QWidget):
 
         assert data_path is not None and project_directory is not None
         self.data = np.load(os.path.join(project_directory,data_path))
-        self.visible_traces = initial_visible_traces
+        self.visible_traces = set(initial_visible_traces)
 
         if labels is not None: assert len(labels)==self.data.shape[0]
         else: labels = [str(i) for i in range(self.data.shape[0])]
@@ -523,7 +523,7 @@ class TrackStack(QWidget):
         self.setSizePolicy(sizePolicy)
 
         hbox = QHBoxLayout(self)
-        
+
         splitter = QSplitter(Qt.Vertical)
         for track in self.tracks:
             splitter.addWidget(track)
