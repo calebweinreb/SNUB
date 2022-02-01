@@ -6,6 +6,7 @@ from PyQt5.QtGui import *
 from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
+from functools import partial
 import pyqtgraph as pg
 import sys
 import os
@@ -16,10 +17,320 @@ import cmapy
 import time
 import colorsys
 
-def get_minutes_seconds(position, fps=30):
-    mm = str(int(position/60/fps))
-    ss = str(int(position/fps)%60)
-    return mm.zfill(2)+':'+ss.zfill(2)
+
+
+def time_to_position(current_range, width, t):
+    pos_rel = (t - current_range[0]) / (current_range[1]-current_range[0])
+    return pos_rel * width
+
+def position_to_time(current_range, width, p):
+    return p/width * (current_range[1]-current_range[0]) + current_range[0]
+
+
+
+
+class TrackStack(QWidget):
+    new_current_time = pyqtSignal(float)
+    selection_change = pyqtSignal(list, list)
+
+    def __init__(self, config, selected_intervals, zoom_gain=0.003, min_range=0.1):
+        super().__init__()
+        self.selected_intervals = selected_intervals
+        self.bounds = config['bounds']
+        self.zoom_gain = zoom_gain
+        self.min_range = min_range
+        self.current_range = self.bounds
+        self.selection_drag_mode = 0 # +1 for shift-click, -1 for command-click
+        self.selection_drag_initial_time = None
+
+        self.overlay = TrackOverlay(config, self, selected_intervals)
+        self.timeline = Timeline(config)
+        self.tracks = [self.timeline]
+        for raster_props in config['rasters']:
+            track = RasterTraceGroup(config, self.selected_intervals, **raster_props)
+            self.tracks.append(track)
+        self.timeline.toggle_units_signal.connect(self.overlay.update_time_unit)
+        self.initUI()
+
+    def _time_to_position(self, t):
+        return time_to_position(self.current_range, self.width(), t)
+
+    def _position_to_time(self, p):
+        return position_to_time(self.current_range, self.width(), p)
+
+    def initUI(self):
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(2)
+        self.setSizePolicy(sizePolicy)
+        self.splitter = QSplitter(Qt.Vertical)
+        self.splitter.setChildrenCollapsible(False)
+        for track in self.tracks[1:]:
+            self.splitter.addWidget(track)
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.splitter)
+        layout.addWidget(self.timeline)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.overlay.raise_()
+
+    def wheelEvent(self,event):
+        if np.abs(event.angleDelta().y()) > np.abs(event.angleDelta().x()): 
+            # vertical motion -> zoom
+            event_t = self._position_to_time(event.x())
+            scale_change = max(1+event.angleDelta().y()*self.zoom_gain, self.min_range/(self.current_range[1]-self.current_range[0]))
+            new_range = [
+                max((self.current_range[0]-event_t)*scale_change+event_t,self.bounds[0]),
+                min((self.current_range[1]-event_t)*scale_change+event_t,self.bounds[1])]
+            self.update_current_range(new_range=new_range)
+
+        if np.abs(event.angleDelta().y()) < np.abs(event.angleDelta().x()): 
+            # horizontal motion -> pan
+            delta_t = -event.angleDelta().x()/self.width() * (self.current_range[1]-self.current_range[0])
+            delta_t = np.clip(delta_t, self.bounds[0]-self.current_range[0],self.bounds[1]-self.current_range[1])
+            new_range = [self.current_range[0]+delta_t ,self.current_range[1]+delta_t]
+            self.update_current_range(new_range=new_range)
+
+    def mouseMoveEvent(self, event):
+        t = max(self._position_to_time(event.x()),0)
+        modifiers = QtWidgets.QApplication.keyboardModifiers()
+        if modifiers == QtCore.Qt.ShiftModifier:
+            self.selection_drag_move(t, 1)
+        elif modifiers == QtCore.Qt.ControlModifier:
+            self.selection_drag_move(t, -1)
+        elif self.selection_drag_mode == 0:
+            self.new_current_time.emit(t)        
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            t = max(self._position_to_time(event.x()),0)
+            modifiers = QtWidgets.QApplication.keyboardModifiers()
+            if modifiers == QtCore.Qt.ShiftModifier:
+                self.selection_drag_start(t, 1)
+            elif modifiers == QtCore.Qt.ControlModifier:
+                self.selection_drag_start(t, -1)
+            else:
+                self.new_current_time.emit(t)
+
+    def mouseReleaseEvent(self, event):
+        self.selection_drag_end()
+
+    def selection_drag_start(self, t, mode):
+        self.selection_drag_mode = mode
+        self.selection_drag_initial_time = t
+
+    def selection_drag_end(self):
+        self.selection_drag_mode = 0
+        self.selection_drag_initial_time = None
+
+    def selection_drag_move(self, t, mode):
+        if self.selection_drag_mode == mode:
+            s,e = sorted([self.selection_drag_initial_time,t])
+            self.selection_change.emit([(s,e)], [mode==1])
+
+    def update_current_range(self, new_range=None):
+        if new_range is not None: self.current_range = new_range
+        for child in self.tracks+[self.overlay]: 
+            child.update_current_range(self.current_range)
+
+    def update_current_time(self, t):
+        self.overlay.vlines['cursor']['time'] = t
+        self.overlay.update()
+
+    def update_selected_intervals(self):
+        self.overlay.update_selected_intervals()
+
+
+
+class Track(QWidget):
+    def __init__(self, config, parent=None, height_ratio=1, **kwargs):
+        super().__init__(parent=parent)
+        self.current_range = config['bounds']
+        self.current_time = config['current_time']
+        self.timestep = config['timestep']
+        self.show_timestep = False
+        self.height_ratio = height_ratio
+
+    def _time_to_position(self, t):
+        return time_to_position(self.current_range, self.width(), t)
+
+    def update_current_range(self, current_range):
+        self.current_range = current_range
+        self.update()
+
+    def update_time_unit(self, show_timestep):
+        self.show_timestep = show_timestep
+        self.update()
+
+    def get_time_label(self, t):
+        if self.show_timestep: 
+            return repr(int(np.around(t/self.timestep)))
+        else: 
+            mm = str(int(t/60))
+            ss = str(int(t%60))
+            return mm.zfill(2)+':'+ss.zfill(2)
+
+    def initUI(self):
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy.setVerticalStretch(self.height_ratio)
+        self.setSizePolicy(sizePolicy)
+        self.setMinimumSize(1,1)
+        self.saved_height = self.height()
+
+    def set_height(self, height):
+        self.resize(self.width(), height)
+        splitter = self.parent()
+        sizes = splitter.sizes()
+        sizes[splitter.indexOf(self)] = height
+        splitter.setSizes(sizes)
+
+
+
+
+class Timeline(Track):
+    toggle_units_signal = QtCore.pyqtSignal(bool)
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.TIMESTEP_SPACING_OPTIONS = config['timestep'] * np.array([1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 1000000])
+        self.SECOND_SPACING_OPTIONS = np.array([1, 5, 10, 30, 60, 120, 300, 600, 900, 1800, 3600])
+        self.MAX_TICKS_VISIBLE = 20
+        self.HEIGHT = 45
+        self.TICK_HEIGHT = 10
+        self.TICK_LABEL_WIDTH = 100
+        self.TICK_LABEL_MARGIN = 2
+        self.TICK_LABEL_HEIGHT = 50
+
+        self.timesteps_button = QRadioButton('timesteps')
+        self.minutes_seconds_button = QRadioButton('mm:ss')
+        self.minutes_seconds_button.setChecked(True)
+        self.timesteps_button.toggled.connect(self.toggle_unit)
+        self.minutes_seconds_button.toggled.connect(self.toggle_unit)
+        self.initUI()
+
+    def initUI(self):
+        self.resize(self.width(),self.HEIGHT)
+        # Set Background
+        pal = QPalette()
+        pal.setColor(QPalette.Background, QColor(20,20,20))
+        self.setPalette(pal)
+        self.setAutoFillBackground(True)
+        self.setFixedHeight(self.HEIGHT)
+
+        radio_button_stylesheet = """
+            QRadioButton {
+                font: 12pt Helvetica;
+                color: rgb(150,150,150);
+            }
+            QRadioButton::indicator {
+                width: 7px;
+                height: 7px;
+            }
+            QRadioButton::indicator:checked {
+                background-color: rgb(100,100,100);
+                border: 1px solid rgb(150,150,150);
+            }
+            QRadioButton::indicator:unchecked {
+                background-color: rgb(20,20,20);
+                border: 1px solid rgb(150,150,150);
+            }
+        """
+        self.timesteps_button.setStyleSheet(radio_button_stylesheet)
+        self.minutes_seconds_button.setStyleSheet(radio_button_stylesheet)
+        button_strip = QHBoxLayout()
+        button_strip.addStretch(0)
+        button_strip.addWidget(self.timesteps_button)
+        button_strip.addWidget(self.minutes_seconds_button)
+        button_strip.addStretch(0)
+        button_strip.setSpacing(10)
+        button_strip.setContentsMargins(5,0,5,0)
+        vbox = QVBoxLayout(self)
+        vbox.addStretch(0)
+        vbox.addLayout(button_strip)
+        vbox.setContentsMargins(0,0,0,5)
+
+    def toggle_unit(self):
+        if self.minutes_seconds_button.isChecked(): self.show_timestep = False
+        if self.timesteps_button.isChecked(): self.show_timestep = True
+        self.toggle_units_signal.emit(self.show_timestep)
+        self.update()
+
+    def get_visible_tick_positions(self):
+        if self.show_timestep: spacing_options = self.TIMESTEP_SPACING_OPTIONS
+        else: spacing_options = self.SECOND_SPACING_OPTIONS
+        visible_range = self.current_range[1]-self.current_range[0]
+        best_spacing = np.min(np.nonzero(visible_range/spacing_options < self.MAX_TICKS_VISIBLE)[0])
+        tick_interval = spacing_options[best_spacing]
+        first_tick = self.current_range[0] - self.current_range[0]%tick_interval + tick_interval
+        tick_times = np.arange(first_tick,self.current_range[1],tick_interval)
+        tick_positions = self._time_to_position(tick_times)
+        return tick_times,tick_positions
+
+    def paintEvent(self, event):
+        qp = QPainter()
+        qp.begin(self)
+        qp.setPen(QColor(150, 150, 150))
+        qp.setFont(QFont("Helvetica [Cronyx]", 10))
+        qp.setRenderHint(QPainter.Antialiasing)
+        tick_times,tick_positions = self.get_visible_tick_positions()
+        for t,p in zip(tick_times,tick_positions): 
+            label = self.get_time_label(t)
+            qp.drawLine(p,0,p,self.TICK_HEIGHT)
+            qp.drawText(
+                p-self.TICK_LABEL_WIDTH//2,
+                self.TICK_HEIGHT+self.TICK_LABEL_MARGIN,
+                self.TICK_LABEL_WIDTH,
+                self.TICK_LABEL_HEIGHT,
+                Qt.AlignHCenter, label)
+        qp.end()
+
+
+
+
+class TrackOverlay(Track):
+    def __init__(self, config, parent, selected_intervals):
+        super().__init__(config, parent=parent)
+        self.selected_intervals = selected_intervals
+        self.vlines = config['vlines']
+        self.vlines['cursor'] = {'time':self.current_time, 'color':(250,250,250), 'linewidth':1}
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.CURSOR_LABEL_LEFT_MARGIN = 5
+        self.CURSOR_LABEL_BOTTOM_MARGIN = 5
+        self.CURSOR_LABEL_HEIGHT = 15
+        self.CURSOR_LABEL_WIDTH = 100
+
+    def update_selected_intervals(self):
+        self.update()
+
+    def paintEvent(self, event):
+        self.resize(self.parent().size())
+        qp = QPainter()
+        qp.begin(self)
+        qp.setRenderHint(QPainter.Antialiasing)
+        for key,vline in self.vlines.items():
+            qp.setPen(QPen(QColor(*vline['color']),vline['linewidth']))
+            r = self._time_to_position(vline['time'])
+            if r > 0 and r < self.width():
+                qp.drawLine(r,0,r,self.parent().height())
+                if key=='cursor' and r < self.width():
+                    qp.setFont(QFont("Helvetica [Cronyx]", 12))
+                    label = self.get_time_label(vline['time'])
+                    qp.drawText(
+                        r+self.CURSOR_LABEL_LEFT_MARGIN,
+                        self.height()-self.CURSOR_LABEL_HEIGHT, 
+                        self.CURSOR_LABEL_WIDTH,
+                        self.height()-self.CURSOR_LABEL_BOTTOM_MARGIN,
+                        Qt.AlignLeft, label)
+
+        qp.setPen(Qt.NoPen)
+        qp.setBrush(QBrush(QColor(255,255,255,100), Qt.SolidPattern))
+        for s,e in self.selected_intervals.intervals:
+            s_pos = self._time_to_position(s)
+            e_pos = self._time_to_position(e)
+            if e_pos > 0 and s_pos < self.width(): 
+                qp.drawRect(s_pos, 0, e_pos-s_pos, self.height())
+        qp.end()
+
+
+
 
 
 class CheckableComboBox(QtWidgets.QComboBox):
@@ -31,7 +342,7 @@ class CheckableComboBox(QtWidgets.QComboBox):
         self.setModel(QStandardItemModel(self))
 
     def addItem(self, label, color, checked=False):
-        super(CheckableComboBox, self).addItem(label)
+        super().addItem(label)
         item_index = self.count()-1
         item = self.model().item(item_index,0)
         item.setFlags(QtCore.Qt.ItemIsEnabled)
@@ -50,22 +361,115 @@ class CheckableComboBox(QtWidgets.QComboBox):
         self.model().item(index,0).setCheckState(checkState)
 
 
-class Trace(QWidget):
-    def __init__(self, trackStack, data_path=None, project_directory=None, height_ratio=1, 
-                 labels=None, colors=None, initial_visible_traces=[0], 
-                 controls_padding_right=10, controls_padding_top=5, trace_label_margin=4,
-                 **kwargs):
+class TrackGroup(Track):
+    def __init__(self, config, name='', tracks={}, track_order=None,
+                 header_height=20, initial_visibility={}, **kwargs):
+        super().__init__(config)
+        assert len(tracks)>0
+        self.name = name
+        self.tracks = tracks
+        self.saved_height = None
+        self.track_visibility = dict(initial_visibility)
+        if track_order is None: track_order = sorted(tracks.keys())
+        self.track_order = track_order
+        self.header_height = header_height
+        self.toggle_buttons = {}
+        for key,track in self.tracks.items():
+            toggle_button = QPushButton()
+            toggle_button.clicked.connect(partial(self.toggle_visiblity,key,None))
+            if not key in initial_visibility: self.track_visibility[key] = True
+            self.toggle_buttons[key] = toggle_button
+        self.height_ratio = np.sum([track.height_ratio for track in self.tracks.values()])
+        self.initUI()
 
-        super().__init__()
-        self.trackStack = trackStack
-        self.current_range = trackStack.current_range
-        self.height_ratio = height_ratio
+    def initUI(self):
+        title = QLabel(self.name)
+        header = QWidget(objectName="trackGroup_header")
+        header.setFixedHeight(self.header_height)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.addStretch(0)
+        title_layout.addWidget(title)
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(25)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        for key in self.track_order: button_layout.addWidget(self.toggle_buttons[key])
+        button_layout.addStretch(0)
+        header_layout.addLayout(title_layout)
+        header_layout.addLayout(button_layout)
+        header_layout.setSpacing(25)
+        splitter = QSplitter(Qt.Vertical, objectName="trackGroup_splitter")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0,0,0,0)
+        layout.setSpacing(0)
+        layout.addWidget(header)
+        layout.addWidget(splitter)
+
+        for key in self.track_order:
+            splitter.addWidget(self.tracks[key])
+            if self.track_visibility[key]:
+                self.toggle_buttons[key].setText('Hide {}'.format(key))
+            else:
+                self.tracks[key].hide()
+                self.toggle_buttons[key].setText('Show {}'.format(key))
+
+        splitter.setStyleSheet("QSplitter#trackGroup_splitter { background-color: rgb(30,30,30); }")
+        self.setStyleSheet("QWidget#trackGroup_header { background-color: rgb(30,30,30); }")
+        header.setStyleSheet("QPushButton { color: rgb(150,150,150); border: 0px;}")
+        super().initUI()
+        
+    def update_current_range(self, current_range):
+        for track in self.tracks.values():
+            track.update_current_range(current_range)
+
+    def toggle_visiblity(self, key, set_visible=None):
+        if set_visible is None: 
+            set_visible = not self.track_visibility[key]
+        if not set_visible:
+            self.saved_height = self.height()
+            self.tracks[key].hide()
+            self.toggle_buttons[key].setText("Show {}".format(key))
+            self.track_visibility[key] = False
+            if not any(self.track_visibility.values()): 
+                self.setFixedHeight(self.header_height)
+        else:
+            self.tracks[key].show()
+            self.toggle_buttons[key].setText("Hide {}".format(key))
+            self.track_visibility[key] = True 
+            self.setMaximumSize(10000,10000)
+            self.setMinimumSize(0,0)
+            self.set_height(max(self.saved_height,100))
+
+class RasterTraceGroup(TrackGroup):
+    def __init__(self, config, selected_intervals, trace_height_ratio=1, raster_height_ratio=2, **kwargs):
+        self.height_ratio = trace_height_ratio + raster_height_ratio
+        trace = Trace(config, height_ratio=trace_height_ratio, **kwargs)
+        raster = Raster(config, selected_intervals, height_ratio=raster_height_ratio, **kwargs)
+        height_ratio = trace_height_ratio+raster_height_ratio
+        super().__init__(config, tracks={'trace':trace, 'raster':raster}, 
+                    track_order=['trace','raster'], height_ratio=height_ratio, **kwargs)
+        raster.display_trace_signal.connect(trace.show_trace)
+        raster.display_trace_signal.connect(partial(self.toggle_visiblity,'trace',True))
+        
+        
+
+
+
+class Trace(Track):
+    def __init__(self, config, data_path=None, binsize=None, labels=None, start_time=0,
+                 initial_visible_traces=[0], controls_padding_right=10, colors=None,
+                 yaxis_width=30, controls_padding_top=5, trace_label_margin=4, **kwargs):
+
+        super().__init__(config, **kwargs)
+        self.binsize = binsize
+        self.start_time = start_time 
         self.controls_padding_right = controls_padding_right
         self.controls_padding_top = controls_padding_top
         self.trace_label_margin = trace_label_margin
 
-        assert data_path is not None and project_directory is not None
-        self.data = np.load(os.path.join(project_directory,data_path))
+        self.data = np.load(os.path.join(config['project_directory'],data_path))
         self.visible_traces = set(initial_visible_traces)
 
         if labels is not None: assert len(labels)==self.data.shape[0]
@@ -85,6 +489,7 @@ class Trace(QWidget):
         self.plotWidget.hideAxis('bottom')
         self.plotWidget.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.plotWidget.showGrid(x=False, y=True, alpha = 0.5)  
+        self.plotWidget.getAxis('left').setWidth(yaxis_width)
 
         self.trace_labels = []
         for i in range(self.data.shape[0]):
@@ -110,11 +515,11 @@ class Trace(QWidget):
         saturation,value = 1,1
         return [int(255*x) for x in colorsys.hsv_to_rgb(hue,1, 1)]
 
+    
     def initUI(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0,0,0,0)
         layout.addWidget(self.plotWidget)
-
         self.controls = QWidget(self)
         control_layout = QHBoxLayout(self.controls)
         control_layout.addStretch(0)
@@ -122,12 +527,7 @@ class Trace(QWidget):
         control_layout.addWidget(self.dropDown, alignment=QtCore.Qt.AlignTop)
         control_layout.addWidget(self.clearButton, alignment=QtCore.Qt.AlignTop)
         self.update_controls_geometry()
-        
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        sizePolicy.setVerticalStretch(self.height_ratio)
-        self.setSizePolicy(sizePolicy)
-        self.setMinimumSize(1,1)
-        self.update()
+        super().initUI()
 
     def clear(self):
         for i in list(self.visible_traces):
@@ -155,21 +555,29 @@ class Trace(QWidget):
     def update_plot(self):
         self.plotWidget.clear()
         for i in self.visible_traces:
-            x,y,color = range(self.data.shape[1]), self.data[i,:], self.colors[i]
-            self.plotWidget.plot(x, y, pen=pg.mkPen(QColor(*color)))
+            x = np.arange(self.data.shape[1])*self.binsize+self.start_time
+            self.plotWidget.plot(x, self.data[i,:], pen=pg.mkPen(QColor(*self.colors[i])))
 
     def update_controls_geometry(self): 
         self.controls.setGeometry(0, 0, self.width(), self.height())
 
-    def resizeEvent(self, event): #2
+    def update_current_range(self, current_range):
+        self.current_range = current_range
+        self.update_Xrange()
+
+    def update_Xrange(self):
+        view_box_width = self.plotWidget.viewGeometry().width()
+        yaxis_width = (self.width()-view_box_width)/self.width()*(self.current_range[1]-self.current_range[0])
+        self.plotWidget.setXRange(self.current_range[0]+yaxis_width, self.current_range[1], padding=0)
+
+    def resizeEvent(self, event):
         super().resizeEvent(event)
+        self.update_Xrange()
         self.update_controls_geometry()
 
-    def update_current_range(self, current_range):
-        view_box_width = self.plotWidget.viewGeometry().width()
-        relative_yaxis_width = (self.width()-view_box_width)/self.width()
-        xmin = current_range[0] + relative_yaxis_width*(current_range[1]-current_range[0])
-        self.plotWidget.setXRange(xmin, current_range[1], padding=0)
+
+
+
 
 class AdjustColormapDialog(QDialog):
     def __init__(self, parent, vmin, vmax):
@@ -193,23 +601,22 @@ class AdjustColormapDialog(QDialog):
         self.hide()
 
 
-class Raster(QWidget):
+
+class Raster(Track):
     display_trace_signal = QtCore.pyqtSignal(int)
-    def __init__(self, trackStack, data_path=None, project_directory=None, height_ratio=1,
-                 name="", vmin=0, vmax=1, colormap='viridis', downsample_options=np.array([1,10,100]), 
+    def __init__(self, config, selected_intervals, data_path=None, binsize=None, start_time=0, 
+                 colormap='viridis', downsample_options=np.array([1,3,10,30,100,300,1000]), 
                  max_display_resolution=2000, labels=[], label_margin=10, max_label_width=300, 
-                 max_label_height=20, label_color=(255,255,255), label_font_size=12,
+                 max_label_height=20, label_color=(255,255,255), label_font_size=12, vmin=0, vmax=1,
                  title_color=(255,255,255), title_margin=5, title_font_size=14, title_height=30, 
                  **kwargs):
-        super().__init__()
-        self.trackStack = trackStack
-        self.current_range = trackStack.current_range
-        self.bounds = trackStack.bounds
+        super().__init__(config, **kwargs)
+        self.selected_intervals = selected_intervals
+        self.binsize = binsize
+        self.start_time = start_time
         self.vmin,self.vmax = vmin,vmax
         self.colormap = colormap
         self.labels = labels
-        self.name = name
-        self.height_ratio = height_ratio
         self.downsample_options = downsample_options
         self.max_display_resolution = max_display_resolution
         self.label_margin = 10
@@ -221,10 +628,9 @@ class Raster(QWidget):
         self.title_margin = title_margin
         self.title_font_size = title_font_size
         self.title_height = title_height
-        self.has_trace_track = False
+        self.image_data = None
 
-        assert data_path is not None and project_directory is not None
-        self.data = np.load(os.path.join(project_directory,data_path))
+        self.data = np.load(os.path.join(config['project_directory'],data_path))
         self.row_order = np.arange(self.data.shape[0])
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
         self.update_image_data()
@@ -236,10 +642,9 @@ class Raster(QWidget):
                         ('Reorder by selection', self.reorder_by_selection),
                         ('Restore original order', self.restore_original_order)]
 
-        if self.has_trace_track:
-            trace_index = self.row_order[int(event.y()/self.height()*self.data.shape[0])]
-            display_trace_slot = lambda: self.display_trace_signal.emit(trace_index)
-            menu_options.insert(0,('Dislay trace {}'.format(trace_index), display_trace_slot))
+        trace_index = self.row_order[int(event.y()/self.height()*self.data.shape[0])]
+        display_trace_slot = lambda: self.display_trace_signal.emit(trace_index)
+        menu_options.insert(0,('Dislay trace {}'.format(trace_index), display_trace_slot))
 
         contextMenu = QMenu(self)
         for name,slot in menu_options:
@@ -254,8 +659,11 @@ class Raster(QWidget):
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
 
     def reorder_by_selection(self):
-        mask = self.trackStack.selection_mask>0
-        activation = self.data[:,self.bounds[0]:self.bounds[1]][:,mask].mean(1)
+        query_intervals = np.stack([
+            np.arange(self.data.shape[1])*self.binsize+self.start_time,
+            np.arange(1,self.data.shape[1]+1)*self.binsize+self.start_time], axis=1)
+        weights = self.selected_intervals.intersection_proportions(query_intervals)
+        activation = (self.data * weights).sum(1)
         self.update_row_order(np.argsort(activation)[::-1])
 
     def restore_original_order(self):
@@ -267,14 +675,8 @@ class Raster(QWidget):
  
     def update_image_data(self):
         data_scaled = np.clip((self.data[self.row_order]-self.vmin)/(self.vmax-self.vmin),0,1)*255
-        self.image_data = cv2.applyColorMap(data_scaled.astype(np.uint8), cmapy.cmap(self.colormap))[:,:,::-1]
-        self.update()
-
-    def initUI(self):
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        sizePolicy.setVerticalStretch(self.height_ratio)
-        self.setSizePolicy(sizePolicy)
-        self.setMinimumSize(1,1)
+        image_data = cv2.applyColorMap(data_scaled.astype(np.uint8), cmapy.cmap(self.colormap))[:,:,::-1]
+        self.image_data = [image_data[:,::d] for d in self.downsample_options]
         self.update()
 
     def cvImage_to_Qimage(self, cvImage):
@@ -285,16 +687,22 @@ class Raster(QWidget):
 
     def get_current_pixmap(self):
         ### NOTE: CAN BE ABSTRACTED: SEE SIMILAR TIMELINE METHOD
-        current_range = self.current_range
-        visible_range = self.current_range[1]-self.current_range[0]
-        best_downsample = np.min(np.nonzero(visible_range / self.downsample_options < self.max_display_resolution)[0])
-        downsample = self.downsample_options[best_downsample]
-        cropped_image = self.image_data[:,self.current_range[0]:self.current_range[1]][:,::downsample]
-        return  QPixmap(self.cvImage_to_Qimage(cropped_image))
+        visible_bins = (self.current_range[1]-self.current_range[0])/self.binsize
+        downsample_ix = np.min(np.nonzero(visible_bins / self.downsample_options < self.max_display_resolution)[0])
+        use_image_data = self.image_data[downsample_ix]
+        use_range = [int(np.floor((self.current_range[0]-self.start_time)/self.binsize/self.downsample_options[downsample_ix])),
+                     int(np.ceil((self.current_range[1]-self.start_time)/self.binsize/self.downsample_options[downsample_ix]))]
+        
+        if use_range[0] > use_image_data.shape[1] or use_range[1] < 0: 
+            use_image_data = np.zeros((50,50,3))
+        elif use_range[0] >= 0 and use_range[1] <= use_image_data.shape[1]:
+            use_image_data = use_image_data[:,use_range[0]:use_range[1]]
+        elif use_range[0] >= 0 and use_range[1] > use_image_data.shape[1]:
+            use_image_data = np.pad(use_image_data[:,use_range[0]:],((0,0),(0,use_range[1]-use_image_data.shape[1]),(0,0)))
+        elif use_range[0] < 0 and use_range[1] <= use_image_data.shape[1]:
+            use_image_data = np.pad(use_image_data[:,:use_range[1]],((0,0),(-use_range[0],0),(0,0)))
+        return  QPixmap(self.cvImage_to_Qimage(use_image_data))
 
-    def update_current_range(self, current_range):
-        self.current_range = current_range
-        self.update()
 
     def update_colormap_range(self, vmin, vmax):
         try:
@@ -316,300 +724,11 @@ class Raster(QWidget):
         qp.drawPixmap(QtCore.QPoint(0,0), pixmap)
         qp.setPen(QColor(*self.label_color))
         qp.setFont(QFont("Helvetica [Cronyx]", self.label_font_size))
-        for i,label in self.labels:
+        for i,label in enumerate(self.labels):
             height = (self.row_order==i).nonzero()[0][0]
             center_height = (height+.5)/self.data.shape[0]*self.height()
             qp.drawText(self.label_margin, center_height-self.max_label_height//2, 
                 self.max_label_width, self.max_label_height, Qt.AlignVCenter, label)
 
 
-
-class Timeline(QWidget):
-    toggle_units_signal = QtCore.pyqtSignal(bool)
-
-    def __init__(self, trackStack, fps):
-        super().__init__()
-        self.fps = fps
-        self.current_range = trackStack.current_range
-        self.FRAME_SPACING_OPTIONS = np.array([1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000])
-        self.SECOND_SPACING_OPTIONS = np.array([1, 5, 10, 30, 60, 120, 300, 600, 900, 1800, 3600])*fps
-        self.MAX_TICKS_VISIBLE = 20
-        self.HEIGHT = 50
-        self.TICK_HEIGHT = 10
-        self.TICK_LABEL_WIDTH = 100
-        self.TICK_LABEL_MARGIN = 2
-        self.TICK_LABEL_HEIGHT = 50
-
-        self.show_seconds = True
-        self.frames_button = QRadioButton('frames')
-        self.minutes_seconds_button = QRadioButton('mm:ss')
-        self.minutes_seconds_button.setChecked(True)
-        self.frames_button.toggled.connect(self.toggle_unit)
-        self.minutes_seconds_button.toggled.connect(self.toggle_unit)
-        self.initUI()
-
-    def initUI(self):
-        self.resize(self.width(),self.HEIGHT)
-        # Set Background
-        pal = QPalette()
-        pal.setColor(QPalette.Background, QColor(20,20,20))
-        self.setPalette(pal)
-        self.setAutoFillBackground(True)
-
-        radio_button_stylesheet = """
-            QRadioButton {
-                font: 12pt Helvetica;
-                color: rgb(150,150,150);
-            }
-            QRadioButton::indicator {
-                width: 7px;
-                height: 7px;
-            }
-            QRadioButton::indicator:checked {
-                background-color: rgb(100,100,100);
-                border: 1px solid rgb(150,150,150);
-            }
-            QRadioButton::indicator:unchecked {
-                background-color: rgb(20,20,20);
-                border: 1px solid rgb(150,150,150);
-            }
-        """
-        self.frames_button.setStyleSheet(radio_button_stylesheet)
-        self.minutes_seconds_button.setStyleSheet(radio_button_stylesheet)
-        button_strip = QHBoxLayout()
-        button_strip.addStretch(0)
-        button_strip.addWidget(self.frames_button)
-        button_strip.addWidget(self.minutes_seconds_button)
-        button_strip.addStretch(0)
-        button_strip.setSpacing(10)
-        button_strip.setContentsMargins(5,0,5,0)
-        vbox = QVBoxLayout(self)
-        vbox.addStretch(0)
-        vbox.addLayout(button_strip)
-        vbox.setContentsMargins(0,0,0,5)
-
-    def toggle_unit(self):
-        if self.minutes_seconds_button.isChecked(): self.show_seconds=True
-        if self.frames_button.isChecked(): self.show_seconds=False
-        self.toggle_units_signal.emit(self.show_seconds)
-        self.update()
-
-    def get_visible_tick_positions(self):
-        if self.show_seconds: spacing_options = self.SECOND_SPACING_OPTIONS
-        else: spacing_options = self.FRAME_SPACING_OPTIONS
-        visible_range = self.current_range[1]-self.current_range[0]
-        best_spacing = np.min(np.nonzero(visible_range/spacing_options < self.MAX_TICKS_VISIBLE)[0])
-        tick_interval = spacing_options[best_spacing]
-        first_tick = self.current_range[0] - self.current_range[0]%tick_interval + tick_interval
-        abs_tick_positions = np.arange(first_tick,self.current_range[1],tick_interval)
-        rel_tick_positions = (abs_tick_positions-self.current_range[0])/visible_range*self.width()
-        return abs_tick_positions.astype(int),rel_tick_positions.astype(int)
-
-    def paintEvent(self, event):
-        qp = QPainter()
-        qp.begin(self)
-        qp.setPen(QColor(150, 150, 150))
-        qp.setFont(QFont("Helvetica [Cronyx]", 10))
-        qp.setRenderHint(QPainter.Antialiasing)
-        abs_tick_positions,rel_tick_positions = self.get_visible_tick_positions()
-        for a,r in zip(abs_tick_positions,rel_tick_positions): 
-            label = get_minutes_seconds(a, fps=self.fps) if self.show_seconds else str(a)
-            qp.drawLine(r,0,r,self.TICK_HEIGHT)
-            qp.drawText(
-                r-self.TICK_LABEL_WIDTH//2,
-                self.TICK_HEIGHT+self.TICK_LABEL_MARGIN,
-                self.TICK_LABEL_WIDTH,
-                self.TICK_LABEL_HEIGHT,
-                Qt.AlignHCenter, label)
-        qp.end()
-
-    def update_current_range(self, current_range):
-        self.current_range = current_range
-        self.update()
-
-
-class TrackOverlay(QWidget):
-    def __init__(self, trackStack, vlines={}, fps=30):
-        super().__init__(parent=trackStack)
-        self.trackStack = trackStack
-        self.fps = fps
-        self.show_seconds = True
-        self.vlines = vlines
-        self.selection_intervals = []
-        self.bounds = trackStack.bounds
-        self.current_range = trackStack.current_range
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-        self.CURSOR_LABEL_LEFT_MARGIN = 5
-        self.CURSOR_LABEL_BOTTOM_MARGIN = 5
-        self.CURSOR_LABEL_HEIGHT = 15
-        self.CURSOR_LABEL_WIDTH = 100
-
-    def update_selection_mask(self, selection_mask, bounds):
-        diff = np.diff(np.pad(selection_mask, (1,1)))
-        starts = (diff>0).nonzero()[0]+bounds[0]
-        ends = (diff<0).nonzero()[0]+bounds[0]
-        self.selection_intervals = list(zip(starts,ends))
-        self.update()
-
-    def paintEvent(self, event):
-        self.resize(self.trackStack.size())
-        qp = QPainter()
-        qp.begin(self)
-        qp.setRenderHint(QPainter.Antialiasing)
-        for key,vline in self.vlines.items():
-            qp.setPen(QPen(QColor(*vline['color']),vline['linewidth']))
-            r = self.trackStack.abs_to_rel(vline['position'])
-            if r > 0 and r < self.width():
-                qp.drawLine(r,0,r,self.trackStack.height())
-
-                if key=='cursor' and r < self.width():
-                    qp.setFont(QFont("Helvetica [Cronyx]", 12))
-                    if self.show_seconds: label = get_minutes_seconds(vline['position'], fps=self.fps)
-                    else: label = str(vline['position'])
-                    qp.drawText(
-                        r+self.CURSOR_LABEL_LEFT_MARGIN,
-                        self.height()-self.CURSOR_LABEL_HEIGHT, 
-                        self.CURSOR_LABEL_WIDTH,
-                        self.height()-self.CURSOR_LABEL_BOTTOM_MARGIN,
-                        Qt.AlignLeft, label)
-                        
-
-        qp.setPen(Qt.NoPen)
-        qp.setBrush(QBrush(QColor(255,255,255,100), Qt.SolidPattern))
-        for s,e in self.selection_intervals:
-            s_rel = self.trackStack.abs_to_rel(s)
-            e_rel = self.trackStack.abs_to_rel(e)
-            if e_rel > 0 or s_rel < self.width() and e_rel > s_rel:
-                qp.drawRect(s_rel, 0, e_rel-s_rel, self.height())
-
-        qp.end()
-
-    def update_current_range(self, current_range):
-        self.current_range = current_range
-        self.update()
-
-    def update_time_unit(self, show_seconds):
-        self.show_seconds = show_seconds
-        self.update()
-
-
-class TrackStack(QWidget):
-    new_current_position = pyqtSignal(int)
-    selection_change = pyqtSignal(list, list)
-
-    def __init__(self, bounds=None, zoom_gain=0.005, min_range=30, fps=30, vlines={}):
-        super().__init__()
-        assert bounds is not None
-        self.fps = fps
-        self.bounds = bounds
-        self.zoom_gain = zoom_gain
-        self.min_range = min_range
-        self.current_range = self.bounds
-        self.selection_mask = np.zeros(bounds[1]-bounds[0])
-        self.selection_drag_mode = 0 # +1 for shift-click, -1 for command-click
-        self.selection_drag_initial_position = None
-
-        self.timeline = Timeline(self, fps)
-        self.overlay = TrackOverlay(self, vlines=vlines, fps=self.fps)
-
-        self.tracks = [self.timeline]
-        self.new_current_position.connect(self.update_current_position)
-        self.timeline.toggle_units_signal.connect(self.overlay.update_time_unit)
-
-
-    def initUI(self, vlines={}):
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(2)
-        self.setSizePolicy(sizePolicy)
-
-        hbox = QHBoxLayout(self)
-
-        splitter = QSplitter(Qt.Vertical)
-        for track in self.tracks:
-            splitter.addWidget(track)
-        hbox.addWidget(splitter)
-        hbox.setContentsMargins(0, 0, 0, 0)
-        self.overlay.vlines['cursor'] = {'position':0, 'color':(250,250,250), 'linewidth':1}
-        self.update_current_range()
-        self.overlay.raise_()
-        self.overlay.update()
-
-
-    def add_track(self, track):
-        self.tracks.insert(0,track)
-
-    def wheelEvent(self,event):
-        if np.abs(event.angleDelta().y()) > np.abs(event.angleDelta().x()): 
-            # vertical motion -> zoom
-            abs_event_pos = self.rel_to_abs(event.x())
-            scale_change = max(1+event.angleDelta().y()*self.zoom_gain, self.min_range/(self.current_range[1]-self.current_range[0]))
-            new_range = [
-                max(int((self.current_range[0]-abs_event_pos)*scale_change+abs_event_pos),self.bounds[0]),
-                min(int((self.current_range[1]-abs_event_pos)*scale_change+abs_event_pos),self.bounds[1])]
-            self.update_current_range(new_range=new_range)
-
-        if np.abs(event.angleDelta().y()) < np.abs(event.angleDelta().x()): 
-            # horizontal motion -> pan
-            abs_delta = np.clip((-event.angleDelta().x())/self.width()*(self.current_range[1]-self.current_range[0]),
-                self.bounds[0]-self.current_range[0],self.bounds[1]-self.current_range[1])
-            new_range = [ int(self.current_range[0]+abs_delta),int(self.current_range[1]+abs_delta)]
-            self.update_current_range(new_range=new_range)
-
-        
-
-    def mouseMoveEvent(self, event):
-        position = int(self.rel_to_abs(event.x()))
-        modifiers = QtWidgets.QApplication.keyboardModifiers()
-        if modifiers == QtCore.Qt.ShiftModifier:
-            self.selection_drag_move(position, 1)
-        elif modifiers == QtCore.Qt.ControlModifier:
-            self.selection_drag_move(position, -1)
-        elif self.selection_drag_mode == 0:
-            self.new_current_position.emit(position)        
-
-    def mousePressEvent(self, event):
-        if event.button() == QtCore.Qt.LeftButton:
-            position = int(self.rel_to_abs(event.x()))
-            modifiers = QtWidgets.QApplication.keyboardModifiers()
-            if modifiers == QtCore.Qt.ShiftModifier:
-                self.selection_drag_start(position, 1)
-            elif modifiers == QtCore.Qt.ControlModifier:
-                self.selection_drag_start(position, -1)
-            else:
-                self.new_current_position.emit(position)
-
-    def mouseReleaseEvent(self, event):
-        self.selection_drag_end()
-
-    def selection_drag_start(self, position, mode):
-        self.selection_drag_mode = mode
-        self.selection_drag_initial_position = position
-
-    def selection_drag_end(self):
-        self.selection_drag_mode = 0
-        self.selection_drag_initial_position = None
-
-    def selection_drag_move(self, position, mode):
-        if self.selection_drag_mode == mode:
-            s,e = sorted([self.selection_drag_initial_position,position])
-            self.selection_change.emit([(s,e)], [max(mode,0)])
-
-    def rel_to_abs(self,r):
-        return r/self.width()*(self.current_range[1]-self.current_range[0])+self.current_range[0]
-
-    def abs_to_rel(self,a):
-        return (a-self.current_range[0])/(self.current_range[1]-self.current_range[0])*self.width()
-
-    def update_current_range(self, new_range=None):
-        if new_range is not None: self.current_range = new_range
-        for child in self.tracks+[self.overlay]: 
-            child.update_current_range(self.current_range)
-
-    def update_current_position(self, position):
-        self.overlay.vlines['cursor']['position'] = position
-        self.overlay.update()
-
-    def update_selection_mask(self, selection_mask):
-        self.selection_mask = selection_mask
-        self.overlay.update_selection_mask(self.selection_mask, self.bounds)
 

@@ -25,6 +25,7 @@ setuptools.setup(
     install_requires=['PyQt5',
                       'numpy',
                       'cmapy',
+                      'ncls',
                       'pyqtgraph',
                       'opencv-python-headless',
                       'vidio>=0.0.3'], 

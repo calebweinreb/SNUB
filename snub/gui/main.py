@@ -6,7 +6,10 @@ from PyQt5.QtGui import *
 from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
+from numba.typed import List
 import sys, os, cv2, json
+from ncls import NCLS
+from numba import njit, prange
 import numpy as np
 import cmapy
 import time
@@ -14,6 +17,13 @@ import time
 from snub.gui.panels import PanelStack, VideoFrame, ScatterPanel
 from snub.gui.tracks import TrackStack, Raster, Trace
 
+
+@njit 
+def sum_by_index(x, ixs, n):
+    out = np.zeros(n)
+    for i in prange(len(ixs)):
+        out[ixs[i]] += x[i]
+    return out
 
 
 def set_style(app):
@@ -41,38 +51,9 @@ def set_style(app):
     app.setPalette(darktheme)
     return app
 
-def complete_config(config):
-    if not 'fps' in config: config['fps'] = 30
-    if not 'start_position' in config: config['start_position'] = config['bounds'][0]+10
-    if not 'scatters' in config: config['scatters'] = []
-    if not 'rasters' in config: config['rasters'] = []
-    if not 'videos' in config: config['videos'] = []
-    if not 'vlines' in config: config['vlines'] = {}
 
-    for raster_props in config['rasters']:
-        if raster_props['name']=='Neural activity':
-            if not 'show_traces' in raster_props:
-                raster_props['show_traces'] = True
 
-    return config
-   
-    
-def getExistingDirectories(parent, *args, **kwargs):
-    """
-    Workaround for selecting multiple directories
-    adopted from http://www.qtcentre.org/threads/34226-QFileDialog-select-multiple-directories?p=158482#post158482
-    This also give control about hidden folders
-    """
-    dlg = QFileDialog(parent, *args, **kwargs)
-    dlg.setOption(dlg.DontUseNativeDialog, True)
-    dlg.setOption(dlg.HideNameFilterDetails, True)
-    dlg.setFileMode(dlg.Directory)
-    dlg.setOption(dlg.ShowDirsOnly, True)
-    dlg.findChildren(QListView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
-    dlg.findChildren(QTreeView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
-    if dlg.exec_() == QDialog.Accepted:
-        return dlg.selectedFiles()
-    return [str(), ]
+
 
 
 class Slider(QSlider):
@@ -84,50 +65,97 @@ class Slider(QSlider):
         else:
             return super().mousePressEvent(self, e)
 
+
+class SelectionIntervals():
+    def __init__(self, timestep):
+        self.timestep = timestep
+        self.intervals = np.empty((0,2))
+
         
+    def partition_intervals(self, start, end):
+        ends_before = self.intervals[:,1] < start
+        ends_after = self.intervals[:,1] >= start
+        starts_before = self.intervals[:,0] <= end
+        starts_after = self.intervals[:,0] > end
+        intersect = self.intervals[np.bitwise_and(ends_after, starts_before)]
+        pre = self.intervals[ends_before]
+        post = self.intervals[starts_after]
+        return pre,intersect,post
+        
+        
+    def add_interval(self, start, end):
+        pre,intersect,post = self.partition_intervals(start,end)
+        if intersect.shape[0] > 0:
+            merged_start = np.minimum(intersect[0,0],start)
+            merged_end = np.maximum(intersect[-1,1],end)
+        else: 
+            merged_start, merged_end = start, end
+        merged_interval = np.array([merged_start, merged_end]).reshape(1,2)
+        self.intervals = np.vstack((pre, merged_interval, post))
+
+    def remove_interval(self, start, end):
+        pre,intersect,post = self.partition_intervals(start,end)
+        pre_intersect = np.empty((0,2))
+        post_intersect = np.empty((0,2))
+        if intersect.shape[0] > 0:
+            if intersect[0,0] < start: pre_intersect = np.array([intersect[0,0],start])
+            if intersect[-1,1] > end: post_intersect = np.array([end,intersect[-1,1]])
+        self.intervals = np.vstack((pre,pre_intersect,post_intersect,post))
+        
+    def preprocess_for_ncls(self, intervals):
+        intervals_discretized = (intervals/self.timestep).astype(int)
+        return (intervals_discretized[:,0].copy(order='C'),
+                intervals_discretized[:,1].copy(order='C'),
+                np.arange(intervals_discretized.shape[0]))
+        
+    def intersection_proportions(self, query_intervals): 
+        query_intervals = self.preprocess_for_ncls(query_intervals)
+        selection_intervals = self.preprocess_for_ncls(self.intervals)
+        ncls = NCLS(*selection_intervals)
+        query_ixs, selection_ixs = ncls.all_overlaps_both(*query_intervals)
+        print('!',query_intervals[0].shape)
+        if len(query_ixs)>0:
+            intersection_starts = np.maximum(query_intervals[0][query_ixs], selection_intervals[0][selection_ixs])
+            intersection_ends = np.minimum(query_intervals[1][query_ixs], selection_intervals[1][selection_ixs])
+            intersection_lengths = intersection_ends - intersection_starts
+            query_intersection_lengths = sum_by_index(intersection_lengths, query_ixs, len(query_intervals[0]))
+            print(query_intersection_lengths.shape, len(query_intervals[0]))
+            query_lengths = query_intervals[1] - query_intervals[0] + 1e-10
+            return query_intersection_lengths / query_lengths
+        else:
+            return np.zeros(len(query_intervals[0]))
+
+
+
+
 class ProjectTab(QWidget):
     new_current_position = pyqtSignal(int)
 
     def __init__(self, project_directory):
         super().__init__()
-        self.playing = False
-        self.play_speed = 1
         
         # load config
         self.project_directory = project_directory
-        config = json.load(open(os.path.join(self.project_directory,'config.json'),'r'))
-        config = complete_config(config)
+        config_path = os.path.join(self.project_directory,'config.json')
+        config = json.load(open(config_path,'r'))
+        config,error_messages = self.validate_and_autofill_config(config)
+        if len(error_messages) > 0: 
+            self.config_error(config_path, error_messages)
+            return
   
+        # initialize state variables
+        self.playing = False
         self.bounds = config['bounds']
-        self.fps = config['fps']
-        self.current_position = config['start_position']
-        self.selection_mask = np.zeros(self.bounds[1]-self.bounds[0])
+        self.current_time = config['current_time']
+        self.play_speed = config['initial_playspeed']
+        self.animation_step = config['animation_step']
+
+        # keep track of current selection
+        self.selected_intervals = SelectionIntervals(timestep=config['timestep'])
         
         # create major gui elements
-        self.panelStack = PanelStack()
-        self.trackStack = TrackStack(bounds=self.bounds, fps=self.fps, vlines=config['vlines'])
-
-        # initialize scatter plots
-        for scatter_props in config['scatters']:
-            scatter_panel = ScatterPanel(project_directory=self.project_directory, bounds=self.bounds, **scatter_props)
-            self.panelStack.add_panel(scatter_panel)
-            scatter_panel.selection_change.connect(self.update_selection_mask)
-            scatter_panel.new_current_position.connect(self.update_current_position)
-
-        # initialize videos
-        for video_props in config['videos']:
-            video_frame = VideoFrame(project_directory=self.project_directory, **video_props)
-            self.panelStack.add_panel(video_frame)
-
-        # initialize rasters
-        for raster_props in config['rasters']:
-            track = Raster(self.trackStack, project_directory=self.project_directory, **raster_props)
-            self.trackStack.add_track(track)
-            if 'show_traces' in raster_props and raster_props['show_traces']==True:
-                trace_track = Trace(self.trackStack, project_directory=self.project_directory, **raster_props)
-                track.display_trace_signal.connect(trace_track.show_trace)
-                track.has_trace_track = True
-                self.trackStack.add_track(trace_track)
+        self.panelStack = PanelStack(config, self.selected_intervals, **config['panel_props'])
+        self.trackStack = TrackStack(config, self.selected_intervals, **config['track_props'])
 
         # timer for live play
         self.timer = QTimer(self)
@@ -142,18 +170,17 @@ class ProjectTab(QWidget):
         self.deselect_button.clicked.connect(self.deselect_all)
         self.speed_slider.valueChanged.connect(self.change_play_speed)
         self.play_button.clicked.connect(self.toggle_play_state)
-        self.trackStack.new_current_position.connect(self.update_current_position)
-        self.trackStack.new_current_position.connect(self.panelStack.update_current_position)
-        self.trackStack.selection_change.connect(self.update_selection_mask)
-        self.new_current_position.connect(self.update_current_position)
-        self.timer.timeout.connect(self.increment_position)
+        self.trackStack.new_current_time.connect(self.update_current_time)
+        self.trackStack.selection_change.connect(self.update_selected_intervals)
+        for panel in self.panelStack.panels: 
+            panel.new_current_time.connect(self.update_current_time)
+            panel.selection_change.connect(self.update_selected_intervals)
+        self.timer.timeout.connect(self.increment_current_time)
 
         # initialize layout
-        self.trackStack.initUI()
-        self.panelStack.initUI()
         self.initUI()
-        self.new_current_position.emit(self.current_position)
-
+        self.trackStack.update_current_range()
+        self.update_current_time(self.current_time)
 
 
     def initUI(self):
@@ -162,7 +189,7 @@ class ProjectTab(QWidget):
         splitter.addWidget(self.trackStack)
 
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.speed_label.setText('1X')
+        self.speed_label.setText('{}X'.format(self.play_speed))
         self.speed_label.setMinimumWidth(35)
         self.speed_slider.setMinimum(0)
         self.speed_slider.setMaximum(7)
@@ -184,44 +211,73 @@ class ProjectTab(QWidget):
         layout.addWidget(splitter)
         layout.addLayout(buttons)
 
+
+    def validate_and_autofill_config(self,config):
+        error_messages = []
+        for k in ['bounds']:
+            if not k in config:
+                error_messages.append('config is missing the key "{}"'.format(k))
+
+        for props in config['rasters']:
+            for k in ['data_path', 'binsize']:
+                if not k in props:
+                    error_messages.append('raster is missing the key "{}"'.format(k))
+
+        for props in config['videos']:
+            for k in ['video_path', 'timestamps_path']:
+                if not k in props:
+                    error_messages.append('video is missing the key "{}"'.format(k))
+
+        config['project_directory'] = self.project_directory
+        if not 'timestep' in config: config['timestep'] = 1/30
+        if not 'current_time' in config: config['current_time'] = 0
+        if not 'initial_playspeed' in config: config['initial_playspeed'] = 1
+        if not 'animation_step' in config: config['animation_step'] = 1/30
+        if not 'track_props' in config: config['track_props'] = {}
+        if not 'panel_props' in config: config['panel_props'] = {}
+        if not 'spike_rasters' in config: config['spike_rasters'] = []
+        if not 'scatters' in config: config['scatters'] = []
+        if not 'rasters' in config: config['rasters'] = []
+        if not 'videos' in config: config['videos'] = []
+        if not 'vlines' in config: config['vlines'] = {}
+        return config, error_messages
+
+
+    def config_error(self, config_path, error_messages):
+        QtWidgets.QMessageBox.about(self, '', '\n'.join(
+            ['The config file {} contains errors\n'.format(config_path)]+error_messages))
+
     def change_play_speed(self, log2_speed):
         self.play_speed = int(2**log2_speed)
         self.speed_label.setText('{}X'.format(self.play_speed))
 
     def deselect_all(self):
-        self.update_selection_mask([self.bounds], [0])
+        self.update_selected_intervals([self.bounds], [False])
 
-    def update_selection_mask(self, intervals, values):
-        for interval,value in zip(intervals,values):
-            shifted_interval = (int(interval[0]-self.bounds[0]), int(interval[1]-self.bounds[0]))
-            shifted_interval = (max(shifted_interval[0],0), min(shifted_interval[1],len(self.selection_mask)-1))
-            if interval[1] > interval[0]: self.selection_mask[shifted_interval[0]:shifted_interval[1]] = value 
-        self.panelStack.update_selection_mask(self.selection_mask)
-        self.trackStack.update_selection_mask(self.selection_mask)
+    def update_selected_intervals(self, intervals, is_selected):
+        for (start,end),sel in zip(intervals, is_selected):
+            if sel: self.selected_intervals.add_interval(start,end)
+            else: self.selected_intervals.remove_interval(start,end)
+        self.trackStack.update_selected_intervals()
+        self.panelStack.update_selected_intervals()
 
+    def update_current_time(self,current_time):
+        self.current_time = current_time
+        self.trackStack.update_current_time(current_time)
+        self.panelStack.update_current_time(current_time)
 
-        # if interval[0]-self.bounds[0] < 0: return
-        # self.selection_mask[interval[0]-self.bounds[0]:interval[1]-self.bounds[0]] = value 
-        # self.overlay.set_selection_intervals(self.selection_mask, self.bounds)
-        # self.overlay.update()
-
-    def update_current_position(self,position):
-        self.current_position = position
-        self.trackStack.update_current_position(position)
-        self.panelStack.update_current_position(position)
-
-    def increment_position(self):
-        new_position = self.current_position + self.play_speed
-        if new_position >= self.trackStack.bounds[1]:
-            new_position = self.trackStack.bounds[0]
-        self.new_current_position.emit(new_position)
+    def increment_current_time(self):
+        new_time = self.current_time + self.play_speed*self.animation_step
+        if new_time >= self.bounds[1]:
+            new_time = self.bounds[0]
+        self.update_current_time(new_time)
 
     def toggle_play_state(self):
         if self.playing: self.pause()
         else: self.play()
 
     def play(self):
-        self.timer.start(1000/self.fps)
+        self.timer.start(1000*self.animation_step)
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
         self.playing = True
 
@@ -232,6 +288,10 @@ class ProjectTab(QWidget):
 
 
 class MainWindow(QMainWindow):
+    '''
+    Main window that contains menu bar and tab widget. Contains methods for
+    opening, reloading, and closing project tabs.
+    '''
     def __init__(self, args):
         super().__init__()
         self.tabs = QTabWidget()
@@ -259,15 +319,19 @@ class MainWindow(QMainWindow):
         saveMenu = fileMenu.addMenu('&Save...')
         saveMenu.addAction(save_layout)
 
+        # try to open projects that are passed as command line arguments
         for a in args:
             if os.path.exists(a): 
                 self.open_project(a)
 
+    # close tab triggered when user clicks "X" on the tab
     def close_tab(self, i):
         self.tabs.removeTab(i)
 
+    # triggered when user clicks "Open Project" in the "File" menu.
+    # multiple project directories can be selected at once
     def file_open(self):
-        project_directories = getExistingDirectories(self)
+        project_directories = self.getExistingDirectories()
         error_directories = []
         for project_dir in project_directories:
             if len(project_dir)>0:
@@ -278,6 +342,7 @@ class MainWindow(QMainWindow):
             QtWidgets.QMessageBox.about(self, '', '\n\n'.join(
                 ['The following directories lack a config file.']+error_directories))
 
+    # triggered when user clicks "Reload Data" in the "File" menu
     def file_reload(self):
         current_index = self.tabs.currentIndex()
         current_tab = self.tabs.currentWidget()
@@ -285,15 +350,33 @@ class MainWindow(QMainWindow):
         self.close_tab(current_index)
         self.open_project(project_dir)
 
+    # triggered when user clicks "Layout" in the "File > Save..." menu
     def file_save_layout(self):
         print('save')
 
-
+    # open the project contained in project_directory
     def open_project(self, project_directory):
         name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
         project_tab = ProjectTab(project_directory)
         self.tabs.addTab(project_tab, name)
         self.tabs.setCurrentWidget(project_tab)
+
+    def getExistingDirectories(self):
+        """
+        Workaround for selecting multiple directories
+        adopted from http://www.qtcentre.org/threads/34226-QFileDialog-select-multiple-directories?p=158482#post158482
+        This also give control about hidden folders
+        """
+        dlg = QFileDialog(self)
+        dlg.setOption(dlg.DontUseNativeDialog, True)
+        dlg.setOption(dlg.HideNameFilterDetails, True)
+        dlg.setFileMode(dlg.Directory)
+        dlg.setOption(dlg.ShowDirsOnly, True)
+        dlg.findChildren(QListView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
+        dlg.findChildren(QTreeView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
+        if dlg.exec_() == QDialog.Accepted:
+            return dlg.selectedFiles()
+        return [str(), ]
 
 
 def run():
@@ -304,6 +387,7 @@ def run():
 
     window = MainWindow(sys.argv[1:])
     window.resize(1500, 900)
+
     window.show()
     sys.exit(app.exec_())
 

@@ -7,6 +7,7 @@ from PyQt5.QtGui import *
 from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
+from ncls import NCLS
 import pyqtgraph as pg
 import sys, os, cv2, json
 import numpy as np
@@ -33,32 +34,28 @@ def numpy_to_qpixmap(image: np.ndarray) -> QtGui.QPixmap:
     qpixmap = QtGui.QPixmap(QtGui.QImage(image, W,
                                          H, image.strides[0],
                                          format))
-    # print(type(qpixmap))
     return qpixmap
 
 
 def float_to_uint8(image: np.ndarray) -> np.ndarray:
     if image.dtype == np.float:
         image = (image * 255).clip(min=0, max=255).astype(np.uint8)
-    # print(image)
     return image
 
 
 
 class VideoFrame(QtWidgets.QGraphicsView):
-     
-    def __init__(self, project_directory=None, video_path=None, frame_index_path=None, name=""):
-        assert project_directory is not None and video_path is not None
+    new_current_time = pyqtSignal(float)
+    selection_change = pyqtSignal(list,list)
+    def __init__(self, config, video_path=None, timestamps_path=None, name=""):
         super().__init__()
         self.initUI()
         self.name = name
-        self.vid = VideoReader(os.path.join(project_directory,video_path))
-        if frame_index_path is None: self.frame_index = np.arange(self.vid.nframes)
-        else: self.frame_index = np.load(os.path.join(project_directory,frame_index_path))
-        self.update_current_position(self.frame_index[0])
+        self.vid = VideoReader(os.path.join(config['project_directory'],video_path))
+        self.timestamps = np.load(os.path.join(config['project_directory'],timestamps_path))
+        self.update_current_time(config['current_time'])
         self.fitInView()
         self.update()
-
 
     def initUI(self):  
         self.scene = QtWidgets.QGraphicsScene(self)
@@ -83,9 +80,8 @@ class VideoFrame(QtWidgets.QGraphicsView):
             self.scale(scale, scale)
         return out
 
-    def update_current_position(self, value):
-        value = int(np.clip(value, 0, len(self.frame_index)))
-        self.frame = self.vid[self.frame_index[value]]
+    def update_current_time(self, t):
+        self.frame = self.vid[self.timestamps.searchsorted(t)]
         self.show_image(self.frame)
         
     def fitInView(self, scale=True):
@@ -99,7 +95,6 @@ class VideoFrame(QtWidgets.QGraphicsView):
             scenerect = self.transform().mapRect(rect)
             factor = min(viewrect.width() / scenerect.width(),
                          viewrect.height() / scenerect.height())
-            # print(factor, viewrect, scenerect)
             self.scale(factor, factor)
             self._zoom = 0
 
@@ -110,7 +105,7 @@ class VideoFrame(QtWidgets.QGraphicsView):
         self._photo.setPixmap(qpixmap)
         self.update()
 
-    def update_selection_mask(self, selection_mask):
+    def update_selected_intervals(self):
         pass
 
 
@@ -157,20 +152,21 @@ class ScrubbableViewBox(pg.ViewBox):
             pg.ViewBox.mouseDragEvent(self, event)
 
 class ScatterPanel(QWidget):
-    new_current_position = pyqtSignal(int)
-    selection_change = pyqtSignal(list, list)
+    new_current_time = pyqtSignal(float)
+    selection_change = pyqtSignal(list,list)
 
-    def __init__(self, project_directory=None, bounds=None, data_path=None, name='',
-                 xlim=None, ylim=None, pointsize=20, linewidth=1, facecolor=(180,180,180), 
+    def __init__(self, config, selected_intervals, 
+                 data_path=None, name='', xlim=None, ylim=None, 
+                 pointsize=20, linewidth=1, facecolor=(180,180,180), 
                  edgecolor=(100,100,100), selected_edgecolor=(255,255,0),
-                 current_node_size=20, current_node_color=(255,0,0)):
+                 current_node_size=20, current_node_color=(255,0,0),
+                 selection_intersection_threshold=0.5):
 
         super().__init__()
-        assert project_directory is not None 
         assert data_path is not None
-        assert bounds is not None
-
-        self.bounds = bounds
+        self.selected_intervals = selected_intervals
+        self.bounds = config['bounds']
+        self.timestep = config['timestep']
         self.xlim = xlim
         self.ylim = ylim
         self.pointsize = pointsize
@@ -180,17 +176,19 @@ class ScatterPanel(QWidget):
         self.selected_edgecolor = selected_edgecolor
         self.current_node_size = current_node_size
         self.current_node_color = current_node_color
+        self.selection_intersection_threshold = selection_intersection_threshold
 
-
-        self.data = np.load(os.path.join(project_directory,data_path))
-        self.selected_points = np.zeros(self.data.shape[0], dtype=int)
+        self.data = np.load(os.path.join(config['project_directory'],data_path))
+        self.ncls = NCLS(*(self.data[:,2:]/self.timestep).astype(int).T, np.arange(self.data.shape[0]))
 
         self.viewBox = ScrubbableViewBox()
         self.plot = pg.PlotWidget(viewBox=self.viewBox)
         self.selection_rect = SelectionRectangle()
         self.scatter = pg.ScatterPlotItem()
+        self.scatter_selected = pg.ScatterPlotItem()
         self.current_node_scatter = pg.ScatterPlotItem()
         self.scatter.sigClicked.connect(self.point_clicked)
+        self.scatter_selected.sigClicked.connect(self.point_clicked)
         self.viewBox.drag_event.connect(self.drag_event)
         self.initUI()
 
@@ -199,17 +197,19 @@ class ScatterPanel(QWidget):
         layout.setContentsMargins(0,0,0,0)
         layout.addWidget(self.plot)
 
-        self.unselected_pen = pg.mkPen(color=self.edgecolor, width=self.linewidth)
-        self.selected_pen = pg.mkPen(color=self.selected_edgecolor, width=self.linewidth)
         self.current_node_brush = pg.mkBrush(color=self.current_node_color)
         self.current_node_scatter.setData(size=self.current_node_size, brush=self.current_node_brush)
         self.scatter.setData(pos=self.data[:,:2], data=np.arange(self.data.shape[0]), 
-                             brush=pg.mkBrush(color=self.facecolor), 
-                             pen=self.unselected_pen, size=self.pointsize)
-        
+                             brush=pg.mkBrush(color=self.facecolor), size=self.pointsize, 
+                             pen=pg.mkPen(color=self.edgecolor, width=self.linewidth))
+        self.scatter_selected.setData(pos=self.data[:,:2], data=np.arange(self.data.shape[0]), 
+                             brush=pg.mkBrush(color=self.facecolor), size=self.pointsize,
+                             pen=pg.mkPen(color=self.selected_edgecolor, width=self.linewidth))
+        self.scatter_selected.setPointsVisible(np.zeros(self.data.shape[0]))
         self.selection_rect.hide()
         self.plot.setClipToView(False)
         self.plot.addItem(self.scatter)
+        self.plot.addItem(self.scatter_selected)
         self.plot.addItem(self.current_node_scatter)
         self.plot.addItem(self.selection_rect)
         self.plot.hideAxis('bottom')
@@ -229,18 +229,19 @@ class ScatterPanel(QWidget):
         if self.ylim is not None: self.plot.setYRange(max(self.ylim[0],ymin_padded),min(self.ylim[1],ymax_padded))
 
 
-    def update_current_position(self, value):
-        current_points_mask = np.all([self.data[:,2]<=value, self.data[:,3]>value],axis=0)
-        current_points_pos = self.data[current_points_mask,:2]
-        self.current_node_scatter.setData(pos=current_points_pos)
+    def update_current_time(self, t):
+        use_t = np.array([t / self.timestep]).astype(int)
+        current_nodes = self.ncls.all_containments_both(use_t,use_t+1,np.array([0]))[1]
+        current_nodes_pos = self.data[current_nodes,:2]
+        self.current_node_scatter.setData(pos=current_nodes_pos)
 
 
     def point_clicked(self, scatter, points):
         modifiers = QtWidgets.QApplication.keyboardModifiers()
         if not modifiers in [QtCore.Qt.ShiftModifier, QtCore.Qt.ControlModifier]:
             index = points[0].index()
-            new_position = self.data[index,2:].mean()
-            self.new_current_position.emit(new_position)
+            new_time = self.data[index,2:].mean()
+            self.new_current_time.emit(new_time)
 
     def drag_event(self, event, modifiers):
         position = self.viewBox.mapSceneToView(event.scenePos())
@@ -251,7 +252,6 @@ class ScatterPanel(QWidget):
             else: self.drag_move(position, modifiers)
 
     def drag_start(self, position):
-        self.selected_points_at_drag_start = np.array(self.selected_points)
         self.position_at_drag_start = position
         self.selection_rect.update_location(position, (0,0))
         self.selection_rect.show()
@@ -264,29 +264,32 @@ class ScatterPanel(QWidget):
         if modifiers == QtCore.Qt.ShiftModifier: selection_value = 1
         if modifiers == QtCore.Qt.ControlModifier: selection_value = 0
         enclosed_points = np.all([self.data[:,:2]>=top_left, self.data[:,:2]<=bottom_right],axis=0).all(1).nonzero()[0]
-        points_to_update = enclosed_points[self.selected_points[enclosed_points] != selection_value]
-        self.selection_change.emit(list(self.data[points_to_update,2:]), [selection_value]*len(points_to_update))
+        self.selection_change.emit(list(self.data[enclosed_points,2:]), [selection_value]*len(enclosed_points))
 
-    def update_selection_mask(self, selection_mask):
-        point_locations = (self.data[:,2]-self.bounds[0]).astype(int)
-        valid_point_locations = np.all([point_locations>=0, point_locations<len(selection_mask)],axis=0)
-        self.selected_points[valid_point_locations] = selection_mask[point_locations[valid_point_locations]]
 
-        o = np.argsort(self.selected_points + np.linspace(0,.5,len(self.selected_points)))
-        point_borders = [[self.unselected_pen,self.selected_pen][self.selected_points[i]] for i in o]
-        self.scatter.setData(pen=point_borders, pos=self.data[o,:2])
+    def update_selected_intervals(self):
+        intersections = self.selected_intervals.intersection_proportions(self.data[:,2:])
+        selected_points = intersections > self.selection_intersection_threshold
+        self.scatter_selected.setPointsVisible(selected_points)
 
     def drag_end(self, position):
         self.selection_rect.hide()
 
 
 class PanelStack(QWidget):
-    def __init__(self):
+    def __init__(self, config, selected_intervals, **kwargs):
         super().__init__()
         self.panels = []
-        
-    def add_panel(self, panel):
-        self.panels.append(panel)
+        self.selected_intervals = selected_intervals
+        for scatter_props in config['scatters']: # initialize scatter plots
+            scatter_panel = ScatterPanel(config, self.selected_intervals, **scatter_props)
+            self.panels.append(scatter_panel)
+            #scatter_panel.selection_change.connect(self.update_selection_mask)
+            #scatter_panel.new_current_position.connect(self.update_current_position)
+        for video_props in config['videos']: # initialize videos
+            video_frame = VideoFrame(config, **video_props)
+            self.panels.append(video_frame)
+        self.initUI()
 
     def initUI(self):
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -301,12 +304,12 @@ class PanelStack(QWidget):
         hbox.setContentsMargins(5, 0, 10, 0)
 
 
-    def update_current_position(self,position):
+    def update_current_time(self,t):
         for panel in self.panels:
-            panel.update_current_position(position)
+            panel.update_current_time(t)
 
-    def update_selection_mask(self, selection_mask):
+    def update_selected_intervals(self):
         for panel in self.panels: 
-            panel.update_selection_mask(selection_mask)
+            panel.update_selected_intervals()
 
 
