@@ -260,7 +260,6 @@ class ScatterPanel(QWidget):
         top_left = np.minimum(position, self.position_at_drag_start)
         bottom_right = np.maximum(position, self.position_at_drag_start)
         self.selection_rect.update_location(top_left, bottom_right-top_left)
-
         if modifiers == QtCore.Qt.ShiftModifier: selection_value = 1
         if modifiers == QtCore.Qt.ControlModifier: selection_value = 0
         enclosed_points = np.all([self.data[:,:2]>=top_left, self.data[:,:2]<=bottom_right],axis=0).all(1).nonzero()[0]

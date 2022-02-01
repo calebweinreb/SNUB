@@ -140,6 +140,7 @@ class ProjectTab(QWidget):
         if len(error_messages) > 0: 
             self.config_error(config_path, error_messages)
             return
+            #self.close_tab()
   
         # initialize state variables
         self.playing = False
@@ -154,6 +155,12 @@ class ProjectTab(QWidget):
         # create major gui elements
         self.panelStack = PanelStack(config, self.selected_intervals, **config['panel_props'])
         self.trackStack = TrackStack(config, self.selected_intervals, **config['track_props'])
+
+        # initialize meshes
+        if 'meshes' in config:
+            for mesh_props in config['meshes']:
+                mesh_vis = MeshVisualization(project_directory=self.project_directory, **mesh_props)
+                self.panelStack.append(mesh_vis)
 
         # timer for live play
         self.timer = QTimer(self)
@@ -242,8 +249,27 @@ class ProjectTab(QWidget):
 
 
     def config_error(self, config_path, error_messages):
-        QtWidgets.QMessageBox.about(self, '', '\n'.join(
-            ['The config file {} contains errors\n'.format(config_path)]+error_messages))
+        title = QLabel('The following config file contains errors')
+        path = QLabel('   '+config_path)
+        errors = QLabel('<html><ul><li>'+'</li><li>'.join(error_messages)+'</li></ul></html>')
+
+        title.setFont(QFont( "Arial", 24, QFont.Bold))
+        font = QFont( "Arial", 16)
+        font.setItalic(True)
+        path.setFont(font)
+        errors.setFont(QFont( "Arial", 18))
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(10)
+        text_layout.addStretch(0)
+        text_layout.addWidget(title)
+        text_layout.addWidget(path)
+        text_layout.addWidget(errors)
+        text_layout.addStretch(0)
+        layout = QHBoxLayout(self)
+        layout.addStretch(0)
+        layout.addLayout(text_layout);
+        layout.addStretch(0)
 
     def change_play_speed(self, log2_speed):
         self.play_speed = int(2**log2_speed)

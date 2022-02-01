@@ -319,7 +319,7 @@ class TrackOverlay(Track):
                         self.CURSOR_LABEL_WIDTH,
                         self.height()-self.CURSOR_LABEL_BOTTOM_MARGIN,
                         Qt.AlignLeft, label)
-
+        
         qp.setPen(Qt.NoPen)
         qp.setBrush(QBrush(QColor(255,255,255,100), Qt.SolidPattern))
         for s,e in self.selected_intervals.intervals:
