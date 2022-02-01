@@ -113,13 +113,11 @@ class SelectionIntervals():
         selection_intervals = self.preprocess_for_ncls(self.intervals)
         ncls = NCLS(*selection_intervals)
         query_ixs, selection_ixs = ncls.all_overlaps_both(*query_intervals)
-        print('!',query_intervals[0].shape)
         if len(query_ixs)>0:
             intersection_starts = np.maximum(query_intervals[0][query_ixs], selection_intervals[0][selection_ixs])
             intersection_ends = np.minimum(query_intervals[1][query_ixs], selection_intervals[1][selection_ixs])
             intersection_lengths = intersection_ends - intersection_starts
             query_intersection_lengths = sum_by_index(intersection_lengths, query_ixs, len(query_intervals[0]))
-            print(query_intersection_lengths.shape, len(query_intervals[0]))
             query_lengths = query_intervals[1] - query_intervals[0] + 1e-10
             return query_intersection_lengths / query_lengths
         else:
