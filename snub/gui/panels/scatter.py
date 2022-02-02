@@ -62,7 +62,7 @@ class ScatterPanel(Panel):
                  current_node_size=20, current_node_color=(255,0,0),
                  selection_intersection_threshold=0.5, **kwargs):
 
-        super().__init__(**kwargs)
+        super().__init__(config, **kwargs)
         assert data_path is not None
         self.selected_intervals = selected_intervals
         self.bounds = config['bounds']

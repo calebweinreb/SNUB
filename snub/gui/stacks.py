@@ -8,27 +8,33 @@ from snub.gui.panels import MeshPanel, VideoPanel, ScatterPanel
 from snub.gui.tracks import RasterTraceTrack, TrackOverlay, Timeline 
 
 
-
-class PanelStack(QWidget):
+class Stack(QWidget):
     def __init__(self, config, selected_intervals, **kwargs):
         super().__init__()
-        self.panels = []
+        self.widgets = []
         self.selected_intervals = selected_intervals
+
+    def change_layout_mode(self, layout_mode):
+        for widget in self.widgets: widget.change_layout_mode(layout_mode)
+        
+
+class PanelStack(Stack):
+    def __init__(self, config, selected_intervals, **kwargs):
+        super().__init__(config, selected_intervals, **kwargs)
 
         for scatter_props in config['scatters']: # initialize scatter plots
             scatter_panel = ScatterPanel(config, self.selected_intervals, **scatter_props)
-            self.panels.append(scatter_panel)
+            self.widgets.append(scatter_panel)
 
         for video_props in config['videos']: # initialize videos
             video_frame = VideoPanel(config, **video_props)
-            self.panels.append(video_frame)
+            self.widgets.append(video_frame)
 
         for mesh_props in config['meshes']:
             mesh_vis = MeshPanel(config, **mesh_props)
-            self.panels.append(mesh_vis)
+            self.widgets.append(mesh_vis)
 
         self.initUI()
-
 
 
     def initUI(self):
@@ -38,30 +44,33 @@ class PanelStack(QWidget):
 
         hbox = QHBoxLayout(self)
         self.splitter = QSplitter(Qt.Vertical)
-        for panel in self.panels:
+        for i,panel in enumerate(self.widgets):
             self.splitter.addWidget(panel)
+            self.splitter.setStretchFactor(i, panel.size_ratio)
+
         hbox.addWidget(self.splitter)
-        self.splitter.setSizes([100000*p.size_ratio for p in self.panels])
+        self.splitter.setSizes([100000*p.size_ratio for p in self.widgets])
         hbox.setContentsMargins(0, 0, 0, 0)
 
 
     def update_current_time(self,t):
-        for panel in self.panels:
+        for panel in self.widgets:
             panel.update_current_time(t)
 
     def update_selected_intervals(self):
-        for panel in self.panels: 
+        for panel in self.widgets: 
             panel.update_selected_intervals()
 
+    def change_layout_mode(self, layout_mode):
+        self.splitter.setOrientation({'columns':Qt.Vertical, 'rows':Qt.Horizontal}[layout_mode])
+        super().change_layout_mode(layout_mode)
 
-
-class TrackStack(QWidget):
+class TrackStack(Stack):
     new_current_time = pyqtSignal(float)
     selection_change = pyqtSignal(list, list)
 
-    def __init__(self, config, selected_intervals, zoom_gain=0.003, min_range=0.1):
-        super().__init__()
-        self.selected_intervals = selected_intervals
+    def __init__(self, config, selected_intervals, zoom_gain=0.003, min_range=0.1, **kwargs):
+        super().__init__(config, selected_intervals, **kwargs)
         self.bounds = config['bounds']
         self.zoom_gain = zoom_gain
         self.min_range = min_range
@@ -71,10 +80,10 @@ class TrackStack(QWidget):
 
         self.overlay = TrackOverlay(config, self, selected_intervals)
         self.timeline = Timeline(config)
-        self.tracks = [self.timeline]
+        self.widgets = [self.timeline]
         for raster_props in config['rasters']:
             track = RasterTraceTrack(config, self.selected_intervals, **raster_props)
-            self.tracks.append(track)
+            self.widgets.append(track)
         self.timeline.toggle_units_signal.connect(self.overlay.update_time_unit)
         self.initUI()
 
@@ -90,8 +99,10 @@ class TrackStack(QWidget):
         self.setSizePolicy(sizePolicy)
         self.splitter = QSplitter(Qt.Vertical)
         self.splitter.setChildrenCollapsible(False)
-        for track in self.tracks[1:]:
+        for i,track in enumerate(self.widgets[1:]):
             self.splitter.addWidget(track)
+            self.splitter.setStretchFactor(i, track.height_ratio)
+
         layout = QVBoxLayout(self)
         layout.addWidget(self.splitter)
         layout.addWidget(self.timeline)
@@ -154,7 +165,7 @@ class TrackStack(QWidget):
 
     def update_current_range(self, new_range=None):
         if new_range is not None: self.current_range = new_range
-        for child in self.tracks+[self.overlay]: 
+        for child in self.widgets+[self.overlay]: 
             child.update_current_range(self.current_range)
 
     def update_current_time(self, t):

@@ -68,7 +68,7 @@ class ProjectTab(QWidget):
         # initialize state variables
         self.playing = False
         self.bounds = config['bounds']
-        self.layout = config['layout']
+        self.layout_mode = config['layout_mode']
         self.current_time = config['current_time']
         self.play_speed = config['initial_playspeed']
         self.animation_step = config['animation_step']
@@ -95,7 +95,7 @@ class ProjectTab(QWidget):
         self.play_button.clicked.connect(self.toggle_play_state)
         self.trackStack.new_current_time.connect(self.update_current_time)
         self.trackStack.selection_change.connect(self.update_selected_intervals)
-        for panel in self.panelStack.panels: 
+        for panel in self.panelStack.widgets: 
             panel.new_current_time.connect(self.update_current_time)
             panel.selection_change.connect(self.update_selected_intervals)
         self.timer.timeout.connect(self.increment_current_time)
@@ -132,6 +132,8 @@ class ProjectTab(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.splitter)
         layout.addLayout(buttons)
+        self.change_layout_mode(self.layout_mode)
+
 
 
     def validate_and_autofill_config(self,config):
@@ -141,7 +143,7 @@ class ProjectTab(QWidget):
                 error_messages.append('config is missing the key "{}"'.format(k))
 
         config['project_directory'] = self.project_directory
-        if not 'layout' in config: config['layout'] = 'columns'
+        if not 'layout_mode' in config: config['layout_mode'] = 'columns'
         if not 'timestep' in config: config['timestep'] = 1/30
         if not 'current_time' in config: config['current_time'] = 0
         if not 'initial_playspeed' in config: config['initial_playspeed'] = 1
@@ -192,9 +194,10 @@ class ProjectTab(QWidget):
         layout.addStretch(0)
 
 
-    def change_layout(self, name):
-        self.splitter.setOrientation({'columns':Qt.Horizontal, 'rows':Qt.Vertical}[name])
-        self.panelStack.splitter.setOrientation({'columns':Qt.Vertical, 'rows':Qt.Horizontal}[name])
+    def change_layout_mode(self, layout_mode):
+        self.splitter.setOrientation({'columns':Qt.Horizontal, 'rows':Qt.Vertical}[layout_mode])
+        self.panelStack.change_layout_mode(layout_mode)
+        self.trackStack.change_layout_mode(layout_mode)
 
     def change_play_speed(self, log2_speed):
         self.play_speed = int(2**log2_speed)
@@ -265,8 +268,8 @@ class MainWindow(QMainWindow):
         self.set_layout_to_cols = QAction("&Columns", self)
         self.set_layout_to_rows.setCheckable(True)
         self.set_layout_to_cols.setCheckable(True)
-        self.set_layout_to_rows.triggered.connect(partial(self.change_layout,'rows'))
-        self.set_layout_to_cols.triggered.connect(partial(self.change_layout,'columns'))
+        self.set_layout_to_rows.triggered.connect(partial(self.change_layout_mode,'rows'))
+        self.set_layout_to_cols.triggered.connect(partial(self.change_layout_mode,'columns'))
 
         mainMenu = self.menuBar()
         mainMenu.setNativeMenuBar(False)
@@ -291,18 +294,18 @@ class MainWindow(QMainWindow):
 
 
 
-    def change_layout(self, name):
+    def change_layout_mode(self, layout_mode):
         current_tab = self.tabs.currentWidget()
-        current_tab.change_layout(name)
-        self.set_layout_to_cols.setChecked(name == 'columns')
-        self.set_layout_to_rows.setChecked(name == 'rows')
+        current_tab.change_layout_mode(layout_mode)
+        self.set_layout_to_cols.setChecked(layout_mode == 'columns')
+        self.set_layout_to_rows.setChecked(layout_mode == 'rows')
 
 
     def tab_changed(self, i):
         if i >= 0:
             current_tab = self.tabs.widget(i)
-            self.set_layout_to_cols.setChecked(current_tab.layout == 'columns')
-            self.set_layout_to_rows.setChecked(current_tab.layout == 'rows')
+            self.set_layout_to_cols.setChecked(current_tab.layout_mode == 'columns')
+            self.set_layout_to_rows.setChecked(current_tab.layout_mode == 'rows')
 
     # close tab triggered when user clicks "X" on the tab
     def close_tab(self, i):

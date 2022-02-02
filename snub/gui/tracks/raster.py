@@ -8,7 +8,7 @@ import numpy as np
 import cmapy
 import time
 
-from snub.gui.tracks import Track, TrackGroup, TraceTrack
+from snub.gui.tracks import Track, TraceTrack, TrackGroup
 
 
 
@@ -71,7 +71,6 @@ class RasterTrack(Track):
         self.row_order = np.arange(self.data.shape[0])
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
         self.update_image_data()
-        self.initUI()
 
 
     def contextMenuEvent(self, event):
@@ -178,5 +177,4 @@ class RasterTraceTrack(TrackGroup):
                     track_order=['trace','raster'], height_ratio=height_ratio, **kwargs)
         raster.display_trace_signal.connect(trace.show_trace)
         raster.display_trace_signal.connect(partial(self.toggle_visiblity,'trace',True))
-        
         

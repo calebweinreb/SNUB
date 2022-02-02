@@ -107,7 +107,6 @@ class TraceTrack(Track):
         control_layout.addWidget(self.dropDown, alignment=Qt.AlignTop)
         control_layout.addWidget(self.clearButton, alignment=Qt.AlignTop)
         self.update_controls_geometry()
-        super().initUI()
 
     def clear(self):
         for i in list(self.visible_traces):

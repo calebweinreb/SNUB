@@ -4,17 +4,20 @@ from PyQt5.QtGui import *
 import numpy as np
 import os
 from functools import partial
-from snub.gui.utils import time_to_position
+from snub.gui.utils import time_to_position, HeaderMixin
 
 
 class Track(QWidget):
     def __init__(self, config, parent=None, height_ratio=1, **kwargs):
         super().__init__(parent=parent)
+        self.layout_mode = config['layout_mode']
         self.current_range = config['bounds']
         self.current_time = config['current_time']
+        self.layout_mode = config['layout_mode']
         self.timestep = config['timestep']
         self.show_timestep = False
         self.height_ratio = height_ratio
+
 
     def _time_to_position(self, t):
         return time_to_position(self.current_range, self.width(), t)
@@ -35,21 +38,11 @@ class Track(QWidget):
             ss = str(int(t%60))
             return mm.zfill(2)+':'+ss.zfill(2)
 
-    def initUI(self):
-        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        sizePolicy.setVerticalStretch(self.height_ratio)
-        self.setSizePolicy(sizePolicy)
-        self.setMinimumSize(1,1)
-        self.saved_height = self.height()
-
-    def set_height(self, height):
-        self.resize(self.width(), height)
-        splitter = self.parent()
-        sizes = splitter.sizes()
-        sizes[splitter.indexOf(self)] = height
-        splitter.setSizes(sizes)
-
-
+    def change_layout_mode(self, layout_mode):
+        self.layout_mode = layout_mode
+        if isinstance(self, HeaderMixin):
+            self.save_current_size()
+            self.update_layout()
 
 
 class Timeline(Track):
@@ -199,86 +192,27 @@ class TrackOverlay(Track):
 
 
 
-class TrackGroup(Track):
-    def __init__(self, config, name='', tracks={}, track_order=None,
-                 header_height=20, initial_visibility=True, **kwargs):
+class TrackGroup(Track, HeaderMixin):
+    def __init__(self, config, tracks={}, track_order=None, **kwargs):
         super().__init__(config)
         assert len(tracks)>0
-        self.name = name
         self.tracks = tracks
-        self.saved_height = 200
-        self.is_visible = initial_visibility
-        self.header_height = header_height
         self.height_ratio = np.sum([track.height_ratio for track in self.tracks.values()])
         if track_order is None: self.track_order = sorted(tracks.keys())
         else: self.track_order = track_order
         self.toggle_button = QPushButton()
         self.toggle_button.clicked.connect(self.toggle_visiblity)
-        self.initUI()
-        self.update_visibility()
+        self.initUI(**kwargs)
         
-
-    def initUI(self):
-        title = QLabel(self.name)
-        header = QWidget(objectName="trackGroup_header")
-        header.setFixedHeight(self.header_height)
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(10, 0, 10, 0)
-        header_layout.addStretch(0)
-        header_layout.addWidget(title)
-        header_layout.addStretch(0)
-        header_layout.addWidget(self.toggle_button)
-
-        splitter = QSplitter(Qt.Vertical, objectName="trackGroup_splitter")
-        for key in self.track_order: splitter.addWidget(self.tracks[key])
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0,0,0,0)
-        layout.setSpacing(0)
-        layout.addWidget(header)
-        layout.addWidget(splitter)
-
-        self.plus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../icons','plus.png')))
-        self.minus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../icons','minus.png')))
-        self.toggle_button.setIcon(self.plus_icon)
-        self.toggle_button.setIconSize(QSize(12,12))
-        #self.toggle_button.resize(5,5)
-
-        splitter.setStyleSheet("QSplitter#trackGroup_splitter { background-color: rgb(30,30,30); }")
-        self.setStyleSheet("QWidget#trackGroup_header { background-color: rgb(30,30,30); }")
-        header.setStyleSheet("QPushButton { color: rgb(150,150,150); border: 0px;}")
-        super().initUI()
+    def initUI(self, **kwargs):
+        super().initUI(**kwargs)
+        self.splitter = QSplitter(Qt.Vertical, objectName="trackGroup_splitter")
+        for key in self.track_order: self.splitter.addWidget(self.tracks[key])
+        self.splitter.setStyleSheet("QSplitter#trackGroup_splitter { background-color: rgb(30,30,30); }")
+        self.layout.addWidget(self.splitter)
 
     def update_current_range(self, current_range):
         for track in self.tracks.values():
             track.update_current_range(current_range)
 
-    def toggle_visiblity(self):
-        self.is_visible = not self.is_visible
-        self.update_visibility()
-
-    def update_visibility(self):
-        if self.is_visible:
-            for track in self.tracks.values(): track.show()
-            self.setMaximumSize(10000,10000)
-            self.setMinimumSize(0,0)
-            self.set_height(max(self.saved_height,100))
-            self.toggle_button.setIcon(self.minus_icon)
-        else:
-            self.saved_height = self.height()
-            for track in self.tracks.values(): track.hide()
-            self.setFixedHeight(self.header_height)
-            self.toggle_button.setIcon(self.plus_icon)
-
-    def set_height(self, height):
-        self.resize(self.width(), height)
-        splitter = self.parent()
-        if splitter is not None:
-            index = splitter.indexOf(self)
-            sizes = splitter.sizes()
-            current_remainder = sum(sizes)-sizes[index]
-            new_remainder = sum(sizes)-height
-            sizes = [s*new_remainder/current_remainder for s in sizes]
-            sizes[index] = height
-            splitter.setSizes(sizes)
 

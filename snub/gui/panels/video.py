@@ -6,7 +6,7 @@ import time
 import os
 
 from vidio import VideoReader
-from snub.gui.utils import numpy_to_qpixmap
+from snub.gui.utils import numpy_to_qpixmap, HeaderMixin
 from snub.gui.panels import Panel
 
 '''
@@ -14,22 +14,20 @@ Video code was borrowed and modified from
 https://github.com/jbohnslav/pose_annotator/blob/master/pose_annotator/gui/custom_widgets.py
 '''
 
-class VideoPanel(Panel):
+class VideoPanel(Panel, HeaderMixin):
 
-    def __init__(self, config, video_path=None, timestamps_path=None, name='', **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, config, video_path=None, timestamps_path=None, **kwargs):
+        super().__init__(config, **kwargs)
         self.video_frame = VideoFrame(os.path.join(config['project_directory'],video_path))
         self.timestamps = np.load(os.path.join(config['project_directory'],timestamps_path))
         self.update_current_time(config['current_time'])
-        self.initUI()
+        self.initUI(**kwargs)
 
-    def initUI(self):
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.video_frame)
-        layout.setContentsMargins(0,0,0,0)
+    def initUI(self, **kwargs):
+        super().initUI(**kwargs)
+        self.layout.addWidget(self.video_frame)
         self.video_frame.fitInView()
         self.video_frame.update()
-        super().initUI()
 
     def update_current_time(self, t):
         i = min(self.timestamps.searchsorted(t), len(self.timestamps))

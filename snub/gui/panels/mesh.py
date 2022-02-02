@@ -5,11 +5,12 @@ from PyQt5 import QtOpenGL
 import pyqtgraph.opengl as gl
 import h5py, numpy as np, os
 from snub.gui.panels import Panel
+from snub.gui.utils import HeaderMixin
 
 
-class MeshPanel(Panel):
+class MeshPanel(Panel, HeaderMixin):
     def __init__(self, config, data_path=None, faces_path=None, timestamps_path=None, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(config, **kwargs)
 
         h5_path = os.path.join(config['project_directory'], data_path)
         faces_path = os.path.join(config['project_directory'], faces_path) 
@@ -28,11 +29,11 @@ class MeshPanel(Panel):
             smooth=False
         )
         self.mesh.setGLOptions('additive')
-        self.initUI()
+        self.initUI(**kwargs)
 
-    def initUI(self):
+    def initUI(self, **kwargs):
+        super().initUI(**kwargs)
         self.w = gl.GLViewWidget()
-        self.w.setWindowTitle(self.name)
         self.w.setCameraPosition(distance=200, elevation=20)
 
         floor_grid = gl.GLGridItem()
@@ -40,10 +41,8 @@ class MeshPanel(Panel):
         floor_grid.setSpacing(5, 5)
         self.w.addItem(floor_grid)
         self.w.addItem(self.mesh)
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.w)
-        layout.setContentsMargins(0,0,0,0)
-        super().initUI()
+        self.layout.addWidget(self.w)
+
 
     def event(self, event):
         return True
@@ -58,11 +57,6 @@ class MeshPanel(Panel):
             faceColors=self.face_colors
         )
         
-
-    def update_selection_mask(self, selection_mask):
-        pass
-
-
 
     def __del__(self):
         self.verts_dset.file.close()
