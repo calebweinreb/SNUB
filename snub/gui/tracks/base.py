@@ -274,7 +274,11 @@ class TrackGroup(Track):
         self.resize(self.width(), height)
         splitter = self.parent()
         if splitter is not None:
+            index = splitter.indexOf(self)
             sizes = splitter.sizes()
-            sizes[splitter.indexOf(self)] = height
+            current_remainder = sum(sizes)-sizes[index]
+            new_remainder = sum(sizes)-height
+            sizes = [s*new_remainder/current_remainder for s in sizes]
+            sizes[index] = height
             splitter.setSizes(sizes)
 
