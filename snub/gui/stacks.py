@@ -37,12 +37,12 @@ class PanelStack(QWidget):
         self.setSizePolicy(sizePolicy)
 
         hbox = QHBoxLayout(self)
-        splitter = QSplitter(Qt.Vertical)
+        self.splitter = QSplitter(Qt.Vertical)
         for panel in self.panels:
-            splitter.addWidget(panel)
-        hbox.addWidget(splitter)
-        splitter.setSizes([100000*p.size_ratio for p in self.panels])
-        hbox.setContentsMargins(5, 0, 10, 0)
+            self.splitter.addWidget(panel)
+        hbox.addWidget(self.splitter)
+        self.splitter.setSizes([100000*p.size_ratio for p in self.panels])
+        hbox.setContentsMargins(0, 0, 0, 0)
 
 
     def update_current_time(self,t):

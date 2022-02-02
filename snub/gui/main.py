@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import sys, os, cv2, json
 import numpy as np
+from functools import partial
 from snub.gui.utils import SelectionIntervals
 from snub.gui.stacks import PanelStack, TrackStack
 
@@ -67,6 +68,7 @@ class ProjectTab(QWidget):
         # initialize state variables
         self.playing = False
         self.bounds = config['bounds']
+        self.layout = config['layout']
         self.current_time = config['current_time']
         self.play_speed = config['initial_playspeed']
         self.animation_step = config['animation_step']
@@ -105,9 +107,9 @@ class ProjectTab(QWidget):
 
 
     def initUI(self):
-        splitter = QSplitter(Qt.Horizontal)
-        splitter.addWidget(self.panelStack)
-        splitter.addWidget(self.trackStack)
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.addWidget(self.panelStack)
+        self.splitter.addWidget(self.trackStack)
 
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.speed_label.setText('{}X'.format(self.play_speed))
@@ -128,8 +130,7 @@ class ProjectTab(QWidget):
         buttons.addWidget(self.deselect_button)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(splitter)
-        layout.addWidget(splitter)
+        layout.addWidget(self.splitter)
         layout.addLayout(buttons)
 
 
@@ -140,6 +141,7 @@ class ProjectTab(QWidget):
                 error_messages.append('config is missing the key "{}"'.format(k))
 
         config['project_directory'] = self.project_directory
+        if not 'layout' in config: config['layout'] = 'columns'
         if not 'timestep' in config: config['timestep'] = 1/30
         if not 'current_time' in config: config['current_time'] = 0
         if not 'initial_playspeed' in config: config['initial_playspeed'] = 1
@@ -186,8 +188,13 @@ class ProjectTab(QWidget):
         text_layout.addStretch(0)
         layout = QHBoxLayout(self)
         layout.addStretch(0)
-        layout.addLayout(text_layout);
+        layout.addLayout(text_layout); 
         layout.addStretch(0)
+
+
+    def change_layout(self, name):
+        self.splitter.setOrientation({'columns':Qt.Horizontal, 'rows':Qt.Vertical}[name])
+        self.panelStack.splitter.setOrientation({'columns':Qt.Vertical, 'rows':Qt.Horizontal}[name])
 
     def change_play_speed(self, log2_speed):
         self.play_speed = int(2**log2_speed)
@@ -239,6 +246,7 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
+        self.tabs.currentChanged.connect(self.tab_changed)
         self.setCentralWidget(self.tabs)
         self.setWindowTitle('Systems Neuro Browser')
 
@@ -253,18 +261,48 @@ class MainWindow(QMainWindow):
         save_layout = QAction("&Layout", self)
         save_layout.triggered.connect(self.file_save_layout)
 
+        self.set_layout_to_rows = QAction("&Rows", self)
+        self.set_layout_to_cols = QAction("&Columns", self)
+        self.set_layout_to_rows.setCheckable(True)
+        self.set_layout_to_cols.setCheckable(True)
+        self.set_layout_to_rows.triggered.connect(partial(self.change_layout,'rows'))
+        self.set_layout_to_cols.triggered.connect(partial(self.change_layout,'columns'))
+
         mainMenu = self.menuBar()
         mainMenu.setNativeMenuBar(False)
+
         fileMenu = mainMenu.addMenu('&File')
         fileMenu.addAction(open_project)
         fileMenu.addAction(reload_data)
-        saveMenu = fileMenu.addMenu('&Save...')
-        saveMenu.addAction(save_layout)
+
+        #saveMenu = fileMenu.addMenu('&Save...')
+        #saveMenu.addAction(save_layout)
+
+        windowMenu = mainMenu.addMenu('&Window')
+        layoutMenu = windowMenu.addMenu('&Layout...')
+        layoutMenu.addAction(self.set_layout_to_cols)
+        layoutMenu.addAction(self.set_layout_to_rows)
+
 
         # try to open projects that are passed as command line arguments
         for a in args:
             if os.path.exists(a): 
                 self.open_project(a)
+
+
+
+    def change_layout(self, name):
+        current_tab = self.tabs.currentWidget()
+        current_tab.change_layout(name)
+        self.set_layout_to_cols.setChecked(name == 'columns')
+        self.set_layout_to_rows.setChecked(name == 'rows')
+
+
+    def tab_changed(self, i):
+        if i >= 0:
+            current_tab = self.tabs.widget(i)
+            self.set_layout_to_cols.setChecked(current_tab.layout == 'columns')
+            self.set_layout_to_rows.setChecked(current_tab.layout == 'rows')
 
     # close tab triggered when user clicks "X" on the tab
     def close_tab(self, i):

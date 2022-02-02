@@ -50,7 +50,6 @@ class MeshPanel(Panel):
 
     def update_current_time(self, t):
         frame = min(self.timestamps.searchsorted(t), len(self.timestamps)-1)
-        print(frame)
         verts = self.verts_dset[frame]
         verts = verts - verts.mean(axis=0)
         self.mesh.setMeshData(

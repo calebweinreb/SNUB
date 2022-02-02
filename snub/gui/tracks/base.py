@@ -223,7 +223,7 @@ class TrackGroup(Track):
         header = QWidget(objectName="trackGroup_header")
         header.setFixedHeight(self.header_height)
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(5, 0, 5, 0)
+        header_layout.setContentsMargins(10, 0, 10, 0)
         header_layout.addStretch(0)
         header_layout.addWidget(title)
         header_layout.addStretch(0)
