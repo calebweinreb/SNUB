@@ -1,29 +1,12 @@
-from PyQt5.QtCore import QDir, Qt, QUrl, pyqtSignal, QTimer
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
-from PyQt5.QtMultimediaWidgets import QVideoWidget
+from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-from PyQt5 import QtWidgets
-from PyQt5 import QtGui
-from PyQt5 import QtCore
-from numba.typed import List
 import sys, os, cv2, json
-from ncls import NCLS
-from numba import njit, prange
 import numpy as np
-import cmapy
-import time
-
-from snub.gui.panels import PanelStack, VideoFrame, ScatterPanel
-from snub.gui.tracks import TrackStack, Raster, Trace
+from snub.gui.utils import SelectionIntervals
+from snub.gui.stacks import PanelStack, TrackStack
 
 
-@njit 
-def sum_by_index(x, ixs, n):
-    out = np.zeros(n)
-    for i in prange(len(ixs)):
-        out[ixs[i]] += x[i]
-    return out
 
 
 def set_style(app):
@@ -31,27 +14,25 @@ def set_style(app):
     # button from here https://github.com/persepolisdm/persepolis/blob/master/persepolis/gui/palettes.py
     app.setStyle(QStyleFactory.create("Fusion"))
 
-    darktheme = QtGui.QPalette()
-    darktheme.setColor(QtGui.QPalette.Window, QtGui.QColor(45, 45, 45))
-    darktheme.setColor(QtGui.QPalette.WindowText, QtGui.QColor(222, 222, 222))
-    darktheme.setColor(QtGui.QPalette.Button, QtGui.QColor(45, 45, 45))
-    darktheme.setColor(QtGui.QPalette.ButtonText, QtGui.QColor(222, 222, 222))
-    darktheme.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(222, 222, 222))
-    # darktheme.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(0, 222, 0))
-    darktheme.setColor(QtGui.QPalette.ToolTipBase, QtGui.QColor(222, 222, 222))
-    darktheme.setColor(QtGui.QPalette.Highlight, QtGui.QColor(45, 45, 45))
-    darktheme.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Light, QtGui.QColor(60, 60, 60))
-    darktheme.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Shadow, QtGui.QColor(50, 50, 50))
-    darktheme.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText,
-                       QtGui.QColor(111, 111, 111))
-    darktheme.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor(122, 118, 113))
-    darktheme.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText,
-                       QtGui.QColor(122, 118, 113))
-    darktheme.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, QtGui.QColor(32, 32, 32))
+    darktheme = QPalette()
+    darktheme.setColor(QPalette.Window, QColor(45, 45, 45))
+    darktheme.setColor(QPalette.WindowText, QColor(222, 222, 222))
+    darktheme.setColor(QPalette.Button, QColor(45, 45, 45))
+    darktheme.setColor(QPalette.ButtonText, QColor(222, 222, 222))
+    darktheme.setColor(QPalette.AlternateBase, QColor(222, 222, 222))
+    # darktheme.setColor(QPalette.AlternateBase, QColor(0, 222, 0))
+    darktheme.setColor(QPalette.ToolTipBase, QColor(222, 222, 222))
+    darktheme.setColor(QPalette.Highlight, QColor(45, 45, 45))
+    darktheme.setColor(QPalette.Disabled, QPalette.Light, QColor(60, 60, 60))
+    darktheme.setColor(QPalette.Disabled, QPalette.Shadow, QColor(50, 50, 50))
+    darktheme.setColor(QPalette.Disabled, QPalette.ButtonText,
+                       QColor(111, 111, 111))
+    darktheme.setColor(QPalette.Disabled, QPalette.Text, QColor(122, 118, 113))
+    darktheme.setColor(QPalette.Disabled, QPalette.WindowText,
+                       QColor(122, 118, 113))
+    darktheme.setColor(QPalette.Disabled, QPalette.Base, QColor(32, 32, 32))
     app.setPalette(darktheme)
     return app
-
-
 
 
 
@@ -66,64 +47,6 @@ class Slider(QSlider):
             return super().mousePressEvent(self, e)
 
 
-class SelectionIntervals():
-    def __init__(self, timestep):
-        self.timestep = timestep
-        self.intervals = np.empty((0,2))
-
-        
-    def partition_intervals(self, start, end):
-        ends_before = self.intervals[:,1] < start
-        ends_after = self.intervals[:,1] >= start
-        starts_before = self.intervals[:,0] <= end
-        starts_after = self.intervals[:,0] > end
-        intersect = self.intervals[np.bitwise_and(ends_after, starts_before)]
-        pre = self.intervals[ends_before]
-        post = self.intervals[starts_after]
-        return pre,intersect,post
-        
-        
-    def add_interval(self, start, end):
-        pre,intersect,post = self.partition_intervals(start,end)
-        if intersect.shape[0] > 0:
-            merged_start = np.minimum(intersect[0,0],start)
-            merged_end = np.maximum(intersect[-1,1],end)
-        else: 
-            merged_start, merged_end = start, end
-        merged_interval = np.array([merged_start, merged_end]).reshape(1,2)
-        self.intervals = np.vstack((pre, merged_interval, post))
-
-    def remove_interval(self, start, end):
-        pre,intersect,post = self.partition_intervals(start,end)
-        pre_intersect = np.empty((0,2))
-        post_intersect = np.empty((0,2))
-        if intersect.shape[0] > 0:
-            if intersect[0,0] < start: pre_intersect = np.array([intersect[0,0],start])
-            if intersect[-1,1] > end: post_intersect = np.array([end,intersect[-1,1]])
-        self.intervals = np.vstack((pre,pre_intersect,post_intersect,post))
-        
-    def preprocess_for_ncls(self, intervals):
-        intervals_discretized = (intervals/self.timestep).astype(int)
-        return (intervals_discretized[:,0].copy(order='C'),
-                intervals_discretized[:,1].copy(order='C'),
-                np.arange(intervals_discretized.shape[0]))
-        
-    def intersection_proportions(self, query_intervals): 
-        query_intervals = self.preprocess_for_ncls(query_intervals)
-        selection_intervals = self.preprocess_for_ncls(self.intervals)
-        ncls = NCLS(*selection_intervals)
-        query_ixs, selection_ixs = ncls.all_overlaps_both(*query_intervals)
-        if len(query_ixs)>0:
-            intersection_starts = np.maximum(query_intervals[0][query_ixs], selection_intervals[0][selection_ixs])
-            intersection_ends = np.minimum(query_intervals[1][query_ixs], selection_intervals[1][selection_ixs])
-            intersection_lengths = intersection_ends - intersection_starts
-            query_intersection_lengths = sum_by_index(intersection_lengths, query_ixs, len(query_intervals[0]))
-            query_lengths = query_intervals[1] - query_intervals[0] + 1e-10
-            return query_intersection_lengths / query_lengths
-        else:
-            return np.zeros(len(query_intervals[0]))
-
-
 
 
 class ProjectTab(QWidget):
@@ -131,7 +54,6 @@ class ProjectTab(QWidget):
 
     def __init__(self, project_directory):
         super().__init__()
-        
         # load config
         self.project_directory = project_directory
         config_path = os.path.join(self.project_directory,'config.json')
@@ -155,12 +77,6 @@ class ProjectTab(QWidget):
         # create major gui elements
         self.panelStack = PanelStack(config, self.selected_intervals, **config['panel_props'])
         self.trackStack = TrackStack(config, self.selected_intervals, **config['track_props'])
-
-        # initialize meshes
-        if 'meshes' in config:
-            for mesh_props in config['meshes']:
-                mesh_vis = MeshVisualization(project_directory=self.project_directory, **mesh_props)
-                self.panelStack.append(mesh_vis)
 
         # timer for live play
         self.timer = QTimer(self)
@@ -223,16 +139,6 @@ class ProjectTab(QWidget):
             if not k in config:
                 error_messages.append('config is missing the key "{}"'.format(k))
 
-        for props in config['rasters']:
-            for k in ['data_path', 'binsize']:
-                if not k in props:
-                    error_messages.append('raster is missing the key "{}"'.format(k))
-
-        for props in config['videos']:
-            for k in ['video_path', 'timestamps_path']:
-                if not k in props:
-                    error_messages.append('video is missing the key "{}"'.format(k))
-
         config['project_directory'] = self.project_directory
         if not 'timestep' in config: config['timestep'] = 1/30
         if not 'current_time' in config: config['current_time'] = 0
@@ -244,12 +150,24 @@ class ProjectTab(QWidget):
         if not 'scatters' in config: config['scatters'] = []
         if not 'rasters' in config: config['rasters'] = []
         if not 'videos' in config: config['videos'] = []
+        if not 'meshes' in config: config['meshes'] = []
         if not 'vlines' in config: config['vlines'] = {}
+
+        for widget_name, requred_keys in {
+            'rasters': ['data_path', 'binsize'],
+            'videos': ['video_path', 'timestamps_path'],
+            'meshes': ['data_path', 'faces_path', 'timestamps_path']
+        }.items():
+            for props in config[widget_name]:
+                for k in requred_keys:
+                    if not k in props:
+                        error_messages.append('{} is missing the key "{}"'.format(widget_name,k))
+
         return config, error_messages
 
 
     def config_error(self, config_path, error_messages):
-        title = QLabel('The following config file contains errors')
+        title = QLabel('The following config file is incomplete')
         path = QLabel('   '+config_path)
         errors = QLabel('<html><ul><li>'+'</li><li>'.join(error_messages)+'</li></ul></html>')
 
@@ -363,7 +281,7 @@ class MainWindow(QMainWindow):
                     self.open_project(project_dir)
                 else: error_directories.append(project_dir)
         if len(error_directories) > 0:
-            QtWidgets.QMessageBox.about(self, '', '\n\n'.join(
+            QMessageBox.about(self, '', '\n\n'.join(
                 ['The following directories lack a config file.']+error_directories))
 
     # triggered when user clicks "Reload Data" in the "File" menu
@@ -406,7 +324,7 @@ class MainWindow(QMainWindow):
 def run():
     app = QApplication(sys.argv)
     app = set_style(app)
-    icon_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'assets','app_icon.png')
+    icon_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','app_icon.png')
     app.setWindowIcon(QIcon(icon_path))
 
     window = MainWindow(sys.argv[1:])

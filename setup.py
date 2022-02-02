@@ -21,12 +21,15 @@ setuptools.setup(
         'console_scripts':[
             'snub = snub.gui.main:run']
     },
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=['PyQt5',
                       'numpy',
                       'cmapy',
                       'ncls',
+                      'numba',
                       'pyqtgraph',
+                      'PyOpenGL',
+                      'PyOpenGL_accelerate',
                       'opencv-python-headless',
                       'vidio>=0.0.3'], 
     url='https://github.com/jbohnslav/pose_annotator'

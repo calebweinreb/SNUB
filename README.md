@@ -2,6 +2,8 @@
 
 ![](https://github.com/calebweinreb/SNUB/blob/main/docs/screen_capture.gif)
 
+# FOLD IN:
+https://github.com/PixarAnimationStudios/USD/issues/1372
 
 ## Installation
 Create and activate a new environment, clone this repo and pip install
