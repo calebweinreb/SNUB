@@ -153,7 +153,7 @@ class HeaderMixin():
         self.plus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','plus.png')))
         self.minus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','minus.png')))
         self.toggle_button.setIcon(self.plus_icon)
-        self.toggle_button.setIconSize(QSize(12,12))
+        self.toggle_button.setIconSize(QSize(14,14))
 
         self.setStyleSheet("QWidget#trackGroup_header { background-color: rgb(30,30,30); }")
         self.header.setStyleSheet("QPushButton { color: rgb(150,150,150); border: 0px;}")

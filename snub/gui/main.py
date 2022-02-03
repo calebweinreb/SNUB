@@ -38,14 +38,14 @@ def set_style(app):
 
 
 
-class Slider(QSlider):
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            x = e.pos().x()
-            value = (self.maximum() - self.minimum()) * x / self.width() + self.minimum()
-            self.setValue(np.around(value))
-        else:
-            return super().mousePressEvent(self, e)
+# class Slider(QSlider):
+#     def mousePressEvent(self, e):
+#         if e.button() == Qt.LeftButton:
+#             x = e.pos().x()
+#             value = (self.maximum() - self.minimum()) * x / self.width() + self.minimum()
+#             self.setValue(np.around(value))
+#         else:
+#             return super().mousePressEvent(self, e)
 
 
 
@@ -72,6 +72,7 @@ class ProjectTab(QWidget):
         self.current_time = config['current_time']
         self.play_speed = config['initial_playspeed']
         self.animation_step = config['animation_step']
+        self.track_playhead = config['track_playhead']
 
         # keep track of current selection
         self.selected_intervals = SelectionIntervals(timestep=config['timestep'])
@@ -85,12 +86,13 @@ class ProjectTab(QWidget):
 
         # controls along bottom row
         self.play_button = QPushButton()
-        self.speed_slider = Slider(Qt.Horizontal)
+        self.speed_slider = QSlider(Qt.Horizontal)
         self.speed_label = QLabel()
-        self.deselect_button = QPushButton('Deselect All')
+        self.track_playhead_checkbox = QCheckBox()
+        self.track_playhead_checkbox.setChecked(self.track_playhead)
+        self.track_playhead_checkbox.stateChanged.connect(self.update_track_playhead)
 
         # connect signals and slots
-        self.deselect_button.clicked.connect(self.deselect_all)
         self.speed_slider.valueChanged.connect(self.change_play_speed)
         self.play_button.clicked.connect(self.toggle_play_state)
         self.trackStack.new_current_time.connect(self.update_current_time)
@@ -111,7 +113,11 @@ class ProjectTab(QWidget):
         self.splitter.addWidget(self.panelStack)
         self.splitter.addWidget(self.trackStack)
 
-        self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.play_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','play.png')))
+        self.pause_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','pause.png')))
+        self.play_button.setIcon(self.play_icon)
+        self.play_button.setIconSize(QSize(12,12))
+
         self.speed_label.setText('{}X'.format(self.play_speed))
         self.speed_label.setMinimumWidth(35)
         self.speed_slider.setMinimum(0)
@@ -120,14 +126,24 @@ class ProjectTab(QWidget):
         self.speed_slider.setTickPosition(QSlider.TicksBothSides)
         self.speed_slider.setTickInterval(1)
         self.speed_slider.setMaximumWidth(150)
-        self.deselect_button.setMaximumWidth(100)
+
+        #self.unchecked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','checkbox_unchecked.png')))
+        #self.checked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','checkbox_checked.png')))
+        #self.track_playhead_checkbox.setIcon(self.checked_icon if self.track_playhead else self.unchecked_icon)
+        self.track_playhead_checkbox.setText('Track Playhead')
+
 
         buttons = QHBoxLayout()
-        buttons.addWidget(self.play_button)
-        buttons.addWidget(self.speed_label)
-        buttons.addWidget(self.speed_slider)
         buttons.addStretch(0)
-        buttons.addWidget(self.deselect_button)
+        buttons.addWidget(self.play_button)
+        buttons.addSpacing(10)
+        buttons.addWidget(QLabel('Playback Speed:'))
+        buttons.addWidget(self.speed_slider)
+        buttons.addWidget(self.speed_label)
+        buttons.addSpacing(20)
+        #buttons.addWidget(QLabel('Track Playhead'))
+        buttons.addWidget(self.track_playhead_checkbox)
+        buttons.addStretch(0)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.splitter)
@@ -135,6 +151,10 @@ class ProjectTab(QWidget):
         self.change_layout_mode(self.layout_mode)
 
 
+    def update_track_playhead(self, checkState):
+        self.track_playhead = checkState==Qt.Checked
+        #self.track_playhead_checkbox.setIcon(self.checked_icon if self.track_playhead else self.unchecked_icon)
+        if self.track_playhead: self.trackStack.center_at_time(self.current_time)
 
     def validate_and_autofill_config(self,config):
         error_messages = []
@@ -148,6 +168,7 @@ class ProjectTab(QWidget):
         if not 'current_time' in config: config['current_time'] = 0
         if not 'initial_playspeed' in config: config['initial_playspeed'] = 1
         if not 'animation_step' in config: config['animation_step'] = 1/30
+        if not 'track_playhead' in config: config['track_playhead'] = False
         if not 'track_props' in config: config['track_props'] = {}
         if not 'panel_props' in config: config['panel_props'] = {}
         if not 'spike_rasters' in config: config['spike_rasters'] = []
@@ -223,6 +244,8 @@ class ProjectTab(QWidget):
         if new_time >= self.bounds[1]:
             new_time = self.bounds[0]
         self.update_current_time(new_time)
+        if self.track_playhead:
+            self.trackStack.center_at_time(self.current_time)
 
     def toggle_play_state(self):
         if self.playing: self.pause()
@@ -230,12 +253,12 @@ class ProjectTab(QWidget):
 
     def play(self):
         self.timer.start(1000*self.animation_step)
-        self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
+        self.play_button.setIcon(self.pause_icon)
         self.playing = True
 
     def pause(self):
         self.timer.stop()
-        self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.play_button.setIcon(self.play_icon)
         self.playing = False
 
 
@@ -255,14 +278,17 @@ class MainWindow(QMainWindow):
 
         open_project = QAction("&Open Project", self)
         open_project.setShortcut("Ctrl+O")
-        open_project.triggered.connect(self.file_open)
+        open_project.triggered.connect(self.open_project)
 
         reload_data = QAction("&Reload Data", self)
         reload_data.setShortcut("Ctrl+R")
-        reload_data.triggered.connect(self.file_reload)
+        reload_data.triggered.connect(self.reload_data)
 
+        deselect_all = QAction("&Deselect All", self)
+        deselect_all.triggered.connect(self.deselect_all)
+        
         save_layout = QAction("&Layout", self)
-        save_layout.triggered.connect(self.file_save_layout)
+        save_layout.triggered.connect(self.save_layout)
 
         self.set_layout_to_rows = QAction("&Rows", self)
         self.set_layout_to_cols = QAction("&Columns", self)
@@ -278,6 +304,9 @@ class MainWindow(QMainWindow):
         fileMenu.addAction(open_project)
         fileMenu.addAction(reload_data)
 
+        editMenu = mainMenu.addMenu('&Edit')
+        editMenu.addAction(deselect_all)
+
         #saveMenu = fileMenu.addMenu('&Save...')
         #saveMenu.addAction(save_layout)
 
@@ -290,9 +319,11 @@ class MainWindow(QMainWindow):
         # try to open projects that are passed as command line arguments
         for a in args:
             if os.path.exists(a): 
-                self.open_project(a)
+                self.load_project(a)
 
 
+    def deselect_all(self):
+        self.tabs.currentWidget().deselect_all()
 
     def change_layout_mode(self, layout_mode):
         current_tab = self.tabs.currentWidget()
@@ -307,38 +338,32 @@ class MainWindow(QMainWindow):
             self.set_layout_to_cols.setChecked(current_tab.layout_mode == 'columns')
             self.set_layout_to_rows.setChecked(current_tab.layout_mode == 'rows')
 
-    # close tab triggered when user clicks "X" on the tab
     def close_tab(self, i):
         self.tabs.removeTab(i)
 
-    # triggered when user clicks "Open Project" in the "File" menu.
-    # multiple project directories can be selected at once
-    def file_open(self):
+    def open_project(self):
         project_directories = self.getExistingDirectories()
         error_directories = []
         for project_dir in project_directories:
             if len(project_dir)>0:
                 if os.path.exists(os.path.join(project_dir,'config.json')):
-                    self.open_project(project_dir)
+                    self.load_project(project_dir)
                 else: error_directories.append(project_dir)
         if len(error_directories) > 0:
             QMessageBox.about(self, '', '\n\n'.join(
                 ['The following directories lack a config file.']+error_directories))
 
-    # triggered when user clicks "Reload Data" in the "File" menu
-    def file_reload(self):
+    def reload_data(self):
         current_index = self.tabs.currentIndex()
         current_tab = self.tabs.currentWidget()
         project_dir = current_tab.project_directory
         self.close_tab(current_index)
-        self.open_project(project_dir)
+        self.load_project(project_dir)
 
-    # triggered when user clicks "Layout" in the "File > Save..." menu
-    def file_save_layout(self):
+    def save_layout(self):
         print('save')
 
-    # open the project contained in project_directory
-    def open_project(self, project_directory):
+    def load_project(self, project_directory):
         name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
         project_tab = ProjectTab(project_directory)
         self.tabs.addTab(project_tab, name)
