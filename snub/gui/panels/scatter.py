@@ -8,6 +8,7 @@ import os
 
 from ncls import NCLS
 from snub.gui.panels import Panel
+from snub.gui.utils import HeaderMixin
 
 
 
@@ -53,7 +54,7 @@ class ScrubbableViewBox(pg.ViewBox):
         if not modifiers in [Qt.ShiftModifier,Qt.ControlModifier]:
             pg.ViewBox.mouseDragEvent(self, event)
 
-class ScatterPanel(Panel):
+class ScatterPanel(Panel, HeaderMixin):
 
     def __init__(self, config, selected_intervals, 
                  data_path=None, name='', xlim=None, ylim=None, 
@@ -94,10 +95,7 @@ class ScatterPanel(Panel):
 
     def initUI(self):
         super().initUI()
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0,0,0,0)
-        layout.addWidget(self.plot)
-
+        self.layout.addWidget(self.plot)
         self.current_node_brush = pg.mkBrush(color=self.current_node_color)
         self.current_node_scatter.setData(size=self.current_node_size, brush=self.current_node_brush)
         self.scatter.setData(pos=self.data[:,:2], data=np.arange(self.data.shape[0]), 

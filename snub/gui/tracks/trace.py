@@ -107,6 +107,9 @@ class TraceTrack(Track):
         control_layout.addWidget(self.dropDown, alignment=Qt.AlignTop)
         control_layout.addWidget(self.clearButton, alignment=Qt.AlignTop)
         self.update_controls_geometry()
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setMinimumSize(1,1)
+        self.update()
 
     def clear(self):
         for i in list(self.visible_traces):
