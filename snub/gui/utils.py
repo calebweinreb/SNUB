@@ -153,7 +153,7 @@ class HeaderMixin():
         self.plus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','plus.png')))
         self.minus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','minus.png')))
         self.toggle_button.setIcon(self.plus_icon)
-        self.toggle_button.setIconSize(QSize(14,14))
+        self.toggle_button.setIconSize(QSize(12,12))
 
         self.setStyleSheet("QWidget#trackGroup_header { background-color: rgb(30,30,30); }")
         self.header.setStyleSheet("QPushButton { color: rgb(150,150,150); border: 0px;}")
@@ -220,6 +220,27 @@ class HeaderMixin():
 
 
 
+
+class CheckBox(QPushButton):
+    state_change = pyqtSignal(bool)
+    def __init__(self, checkstate=False):
+        super().__init__()
+        self.checkstate = checkstate
+        self.unchecked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','checkbox_unchecked.png')))
+        self.checked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','checkbox_checked.png')))
+        self.update_icon()
+        self.setIconSize(QSize(14,14))
+        self.clicked.connect(self.toggle)
+        self.setStyleSheet("QPushButton { color: rgb(150,150,150); border: 0px;}")
+
+    def toggle(self):
+        self.checkstate = not self.checkstate
+        self.update_icon()
+        self.state_change.emit(self.checkstate)
+
+    def update_icon(self):
+        if self.checkstate: self.setIcon(self.checked_icon)
+        else: self.setIcon(self.unchecked_icon)
 
 
 

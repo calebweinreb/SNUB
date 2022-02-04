@@ -4,7 +4,7 @@ from PyQt5.QtGui import *
 import sys, os, cv2, json
 import numpy as np
 from functools import partial
-from snub.gui.utils import SelectionIntervals
+from snub.gui.utils import SelectionIntervals, CheckBox
 from snub.gui.stacks import PanelStack, TrackStack
 
 
@@ -88,9 +88,8 @@ class ProjectTab(QWidget):
         self.play_button = QPushButton()
         self.speed_slider = QSlider(Qt.Horizontal)
         self.speed_label = QLabel()
-        self.track_playhead_checkbox = QCheckBox()
-        self.track_playhead_checkbox.setChecked(self.track_playhead)
-        self.track_playhead_checkbox.stateChanged.connect(self.update_track_playhead)
+        self.track_playhead_checkbox = CheckBox(self.track_playhead)
+        self.track_playhead_checkbox.state_change.connect(self.update_track_playhead)
 
         # connect signals and slots
         self.speed_slider.valueChanged.connect(self.change_play_speed)
@@ -127,12 +126,7 @@ class ProjectTab(QWidget):
         self.speed_slider.setTickInterval(1)
         self.speed_slider.setMaximumWidth(150)
 
-        #self.unchecked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','checkbox_unchecked.png')))
-        #self.checked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','checkbox_checked.png')))
-        #self.track_playhead_checkbox.setIcon(self.checked_icon if self.track_playhead else self.unchecked_icon)
-        self.track_playhead_checkbox.setText('Track Playhead')
-
-
+ 
         buttons = QHBoxLayout()
         buttons.addStretch(0)
         buttons.addWidget(self.play_button)
@@ -141,8 +135,8 @@ class ProjectTab(QWidget):
         buttons.addWidget(self.speed_slider)
         buttons.addWidget(self.speed_label)
         buttons.addSpacing(20)
-        #buttons.addWidget(QLabel('Track Playhead'))
         buttons.addWidget(self.track_playhead_checkbox)
+        buttons.addWidget(QLabel('Track Playhead'))
         buttons.addStretch(0)
 
         layout = QVBoxLayout(self)
@@ -151,9 +145,8 @@ class ProjectTab(QWidget):
         self.change_layout_mode(self.layout_mode)
 
 
-    def update_track_playhead(self, checkState):
-        self.track_playhead = checkState==Qt.Checked
-        #self.track_playhead_checkbox.setIcon(self.checked_icon if self.track_playhead else self.unchecked_icon)
+    def update_track_playhead(self, checkstate):
+        self.track_playhead = checkstate
         if self.track_playhead: self.trackStack.center_at_time(self.current_time)
 
     def validate_and_autofill_config(self,config):
