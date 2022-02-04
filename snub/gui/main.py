@@ -37,20 +37,14 @@ def set_style(app):
 
 
 
-
-# class Slider(QSlider):
-#     def mousePressEvent(self, e):
-#         if e.button() == Qt.LeftButton:
-#             x = e.pos().x()
-#             value = (self.maximum() - self.minimum()) * x / self.width() + self.minimum()
-#             self.setValue(np.around(value))
-#         else:
-#             return super().mousePressEvent(self, e)
-
-
-
-
 class ProjectTab(QWidget):
+    """
+    Return the most important thing about a person.
+    Parameters
+    ----------
+    your_name
+        A string indicating the name of the person.
+    """
     new_current_position = pyqtSignal(int)
 
     def __init__(self, project_directory):
@@ -126,7 +120,6 @@ class ProjectTab(QWidget):
         self.speed_slider.setTickInterval(1)
         self.speed_slider.setMaximumWidth(150)
 
- 
         buttons = QHBoxLayout()
         buttons.addStretch(0)
         buttons.addWidget(self.play_button)
@@ -143,7 +136,6 @@ class ProjectTab(QWidget):
         layout.addWidget(self.splitter)
         layout.addLayout(buttons)
         self.change_layout_mode(self.layout_mode)
-
 
     def update_track_playhead(self, checkstate):
         self.track_playhead = checkstate

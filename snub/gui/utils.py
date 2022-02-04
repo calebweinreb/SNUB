@@ -160,7 +160,7 @@ class HeaderMixin():
         self.update_layout()
 
 
-    def toggle_visiblity(self):
+    def toggle_visiblity(self, *args):
         if self.is_visible:
             self.save_current_size()
             self.is_visible = False
