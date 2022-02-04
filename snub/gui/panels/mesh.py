@@ -37,8 +37,8 @@ class MeshPanel(Panel, HeaderMixin):
         self.w.setCameraPosition(distance=200, elevation=20)
 
         floor_grid = gl.GLGridItem()
-        floor_grid.setSize(500, 500)
-        floor_grid.setSpacing(5, 5)
+        floor_grid.setSize(2000, 2000)
+        floor_grid.setSpacing(20, 20)
         self.w.addItem(floor_grid)
         self.w.addItem(self.mesh)
         self.layout.addWidget(self.w)
@@ -50,13 +50,13 @@ class MeshPanel(Panel, HeaderMixin):
     def update_current_time(self, t):
         frame = min(self.timestamps.searchsorted(t), len(self.timestamps)-1)
         verts = self.verts_dset[frame]
-        verts = verts - verts.mean(axis=0)
         self.mesh.setMeshData(
             vertexes=verts,
             faces=self.faces,
             faceColors=self.face_colors
         )
-        
+        x, y, _ = verts.mean(axis=0)
+        pos = self.w.setCameraPosition(pos=QVector3D(x, y, 0))
 
     def __del__(self):
         self.verts_dset.file.close()
