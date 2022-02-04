@@ -207,7 +207,9 @@ class TrackGroup(Track, HeaderMixin):
     def initUI(self, **kwargs):
         super().initUI(**kwargs)
         self.splitter = QSplitter(Qt.Vertical, objectName="trackGroup_splitter")
-        for key in self.track_order: self.splitter.addWidget(self.tracks[key])
+        for i,key in enumerate(self.track_order): 
+            self.splitter.addWidget(self.tracks[key])
+            self.splitter.setStretchFactor(i, self.tracks[key].height_ratio)
         self.splitter.setStyleSheet("QSplitter#trackGroup_splitter { background-color: rgb(30,30,30); }")
         self.layout.addWidget(self.splitter)
 

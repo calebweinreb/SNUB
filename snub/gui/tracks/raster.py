@@ -176,5 +176,3 @@ class RasterTraceTrack(TrackGroup):
         super().__init__(config, tracks={'trace':trace, 'raster':raster}, 
                     track_order=['trace','raster'], height_ratio=height_ratio, **kwargs)
         raster.display_trace_signal.connect(trace.show_trace)
-        raster.display_trace_signal.connect(partial(self.toggle_visiblity,'trace',True))
-        
