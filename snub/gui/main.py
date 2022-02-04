@@ -335,6 +335,8 @@ class MainWindow(QMainWindow):
         error_directories = []
         for project_dir in project_directories:
             if len(project_dir)>0:
+                if project_dir.endswith('config.json'):
+                    project_dir = os.path.dirname(project_dir)
                 if os.path.exists(os.path.join(project_dir,'config.json')):
                     self.load_project(project_dir)
                 else: error_directories.append(project_dir)
