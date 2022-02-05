@@ -335,8 +335,8 @@ class MainWindow(QMainWindow):
         error_directories = []
         for project_dir in project_directories:
             if len(project_dir)>0:
-                if project_dir.endswith('config.json'):
-                    project_dir = os.path.dirname(project_dir)
+                # if project_dir.endswith('config.json'):
+                #     project_dir = os.path.dirname(project_dir)
                 if os.path.exists(os.path.join(project_dir,'config.json')):
                     self.load_project(project_dir)
                 else: error_directories.append(project_dir)
@@ -370,7 +370,7 @@ class MainWindow(QMainWindow):
         dlg = QFileDialog(self)
         dlg.setOption(dlg.DontUseNativeDialog, True)
         dlg.setOption(dlg.HideNameFilterDetails, True)
-        dlg.setFileMode(dlg.Directory | dlg.ExistingFiles)
+        dlg.setFileMode(dlg.Directory)
         dlg.setOption(dlg.ShowDirsOnly, False)
         dlg.findChildren(QListView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
         dlg.findChildren(QTreeView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
