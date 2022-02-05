@@ -9,22 +9,25 @@ Use Cases
 ---------
 
 1. Caption blah
-.. image:: ../media/screen_capture1.gif
+
+.. image:: ../media/use_case1.gif
 
 2. Caption blah
-.. image:: ../media/screen_capture3.gif
+
+.. image:: ../media/use_case2.gif
 
 3. Caption blah
-.. image:: ../media/screen_capture4.gif
+
+.. image:: ../media/use_case3.gif
 
 Installation
 ------------
 
-Install `Anaconda <https://docs.anaconda.com/anaconda/install/index.html>`_ or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_. Create an environment with python≥3.7 and pip install SNUB. 
+Install `Anaconda <https://docs.anaconda.com/anaconda/install/index.html>`_ or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_. Create an environment with python≥3.8 and pip install SNUB. 
 
 .. code-block:: console
 
-   conda create -n snub python=3.7
+   conda create -n snub python=3.8
    conda activate snub
    pip install -U git+https://github.com/calebweinreb/SNUB
 
@@ -32,21 +35,13 @@ To test the installation, download the example data and start SNUB by running::
 
    snub
 
-(make sure the conda environment is activated). A browser window should launch. Go to ``File > Open Project``,  navigate to one of the example projects, and hit ``Choose`` with the project directory selected. Alternatively, you can launch snub with the project path as a command line argument::
+in a terminal or anaconda prompt (make sure the ``snub`` conda environment is activated). A browser window should launch. Go to ``File > Open Project``,  navigate to one of the example projects, and hit ``Choose`` with the project directory selected. Projects can also be opened by including the path as a command line argument::
 
    snub /path/to/project/directory
 
-.. note:: 
+To use SNUB functions in jupyter, execute the following line with the ``snub`` environment active. The environment should then be listed as an option when creating a new notebook or when switching kernels (``Kernel > Change Kernel > snub``)::
 
-   If you have macOS Big Sur, opengl-based features such as the 3D mesh view `will only work <https://github.com/PixarAnimationStudios/USD/issues/1372#issuecomment-716925973>`_ if edit::
-
-      ~/miniconda3/envs/snub/lib/python3.7/site-packages/OpenGL/platform/ctypesloader.py
-
-   by replacing the following line::
-
-      # fullName = util.find_library( name ) # <- comment this line out
-      fullName = '/System/Library/Frameworks/OpenGL.framework/OpenGL' # <- use this line instead
-
+   python -m ipykernel install --user --name=snub
 
 
 Loading Data
