@@ -4,7 +4,7 @@ from PyQt5.QtGui import *
 import numpy as np
 
 from snub.gui.stacks import Stack
-from snub.gui.tracks import RasterTraceTrack, TrackOverlay, Timeline 
+from snub.gui.tracks import HeatmapTraceGroup, TrackOverlay, Timeline 
 from snub.gui.utils import time_to_position, position_to_time
 
 
@@ -28,8 +28,8 @@ class TrackStack(Stack):
         self.overlay = TrackOverlay(config, self, selected_intervals)
         self.timeline = Timeline(config)
         self.widgets = [self.timeline]
-        for raster_props in config['rasters']:
-            track = RasterTraceTrack(config, self.selected_intervals, **raster_props)
+        for heatmap_props in config['heatmaps']:
+            track = HeatmapTraceGroup(config, self.selected_intervals, **heatmap_props)
             self.widgets.append(track)
         self.timeline.toggle_units_signal.connect(self.overlay.update_time_unit)
         self.initUI()

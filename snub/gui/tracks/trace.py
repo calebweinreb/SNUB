@@ -37,7 +37,7 @@ class CheckableComboBox(QComboBox):
 
 
 
-class TraceTrack(Track):
+class Trace(Track):
     def __init__(self, config, data_path=None, binsize=None, labels=None, start_time=0,
                  initial_visible_traces=[0], controls_padding_right=10, colors=None,
                  yaxis_width=30, controls_padding_top=5, trace_label_margin=4, **kwargs):

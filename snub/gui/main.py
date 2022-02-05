@@ -160,15 +160,15 @@ class ProjectTab(QWidget):
         if not 'track_playhead' in config: config['track_playhead'] = False
         if not 'track_props' in config: config['track_props'] = {}
         if not 'panel_props' in config: config['panel_props'] = {}
-        if not 'spike_rasters' in config: config['spike_rasters'] = []
+        if not 'spikeplots' in config: config['spikeplots'] = []
         if not 'scatters' in config: config['scatters'] = []
-        if not 'rasters' in config: config['rasters'] = []
+        if not 'heatmaps' in config: config['heatmaps'] = []
         if not 'videos' in config: config['videos'] = []
         if not 'meshes' in config: config['meshes'] = []
         if not 'vlines' in config: config['vlines'] = {}
 
         for widget_name, requred_keys in {
-            'rasters': ['data_path', 'binsize'],
+            'heatmaps': ['data_path', 'binsize'],
             'videos': ['video_path', 'timestamps_path'],
             'meshes': ['data_path', 'faces_path', 'timestamps_path']
         }.items():

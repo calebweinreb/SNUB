@@ -1,7 +1,3 @@
-Tutorial
-========
-
-
 Project Structure
 =================
 
