@@ -346,6 +346,7 @@ class MainWindow(QMainWindow):
 
     def reload_data(self):
         current_index = self.tabs.currentIndex()
+        if current_index == -1: return # no tab 
         current_tab = self.tabs.currentWidget()
         project_dir = current_tab.project_directory
         self.close_tab(current_index)
@@ -369,8 +370,8 @@ class MainWindow(QMainWindow):
         dlg = QFileDialog(self)
         dlg.setOption(dlg.DontUseNativeDialog, True)
         dlg.setOption(dlg.HideNameFilterDetails, True)
-        dlg.setFileMode(dlg.Directory)
-        dlg.setOption(dlg.ShowDirsOnly, True)
+        dlg.setFileMode(dlg.Directory | dlg.ExistingFiles)
+        dlg.setOption(dlg.ShowDirsOnly, False)
         dlg.findChildren(QListView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
         dlg.findChildren(QTreeView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
         if dlg.exec_() == QDialog.Accepted:
