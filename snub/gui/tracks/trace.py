@@ -4,6 +4,7 @@ from PyQt5.QtGui import *
 import pyqtgraph as pg
 import colorsys
 import numpy as np
+import pickle
 import os
 
 from snub.gui.tracks import Track, TrackGroup
@@ -38,27 +39,25 @@ class CheckableComboBox(QComboBox):
 
 
 class TracePlot(Track):
-    def __init__(self, config, data_path=None, binsize=None, labels=None, start_time=0,
-                 initial_visible_traces=None, controls_padding_right=10, colors=None,
+    def __init__(self, config, data_path=None, data=None, labels=None, 
+                 initial_visible_traces=None, controls_padding_right=10, colors={},
                  yaxis_width=30, controls_padding_top=5, trace_label_margin=4, **kwargs):
 
         super().__init__(config, **kwargs)
-        self.binsize = binsize
-        self.start_time = start_time 
         self.controls_padding_right = controls_padding_right
         self.controls_padding_top = controls_padding_top
         self.trace_label_margin = trace_label_margin
 
-        self.data = np.load(os.path.join(config['project_directory'],data_path))
+        if data is not None: self.data = data
+        else: self.data = pickle.load(open(os.path.join(config['project_directory'],data_path),'rb'))
+
         if initial_visible_traces is not None: self.visible_traces = set(initial_visible_traces)
-        else: self.visible_traces = set([np.random.randint(self.data.shape[0])])
+        elif len(self.data)>0: self.visible_traces = set([np.random.choice(list(self.data.keys()))])
+        else: self.visible_traces = set([])
 
-        if labels is not None: assert len(labels)==self.data.shape[0]
-        else: labels = [str(i) for i in range(self.data.shape[0])]
-        self.labels = labels
-
-        if colors is not None: assert len(colors)==self.data.shape[0]
-        else: colors = [self.get_random_color() for i in range(self.data.shape[0])]
+        for label in self.data: 
+            if not label in colors:
+                colors[label] = self.get_random_color()
         self.colors = colors
         
         self.clearButton = QPushButton("Clear")
@@ -73,14 +72,14 @@ class TracePlot(Track):
         self.plotWidget.getAxis('left').setWidth(yaxis_width)
 
         self.trace_labels = []
-        for i in range(self.data.shape[0]):
-            self.dropDown.addItem(self.labels[i], self.colors[i], checked=(i in self.visible_traces))
-            trace_label = QPushButton(self.labels[i])
+        for label in self.data:
+            self.dropDown.addItem(label, self.colors[label], checked=(label in self.visible_traces))
+            trace_label = QPushButton(label)
             trace_label.setFixedWidth(trace_label.fontMetrics().boundingRect(trace_label.text()).width()+20)
-            trace_label.setStyleSheet("background-color: rgb(20,20,20); color: rgb({},{},{});".format(*self.colors[i]))
+            trace_label.setStyleSheet("background-color: rgb(20,20,20); color: rgb({},{},{});".format(*self.colors[label]))
             trace_label.pressed.connect(self.trace_label_button_push)
             #trace_label.setMargin(self.trace_label_margin)
-            if not i in self.visible_traces: trace_label.hide()
+            if not label in self.visible_traces: trace_label.hide()
             self.trace_labels.append(trace_label)
     
         self.initUI()
@@ -122,24 +121,25 @@ class TracePlot(Track):
         else: self.hide_trace(i)
 
     def show_trace(self, index, update_plot=True):
-        if not index in self.visible_traces:
+        label = self.trace_labels[index].text()
+        if not label in self.visible_traces:
             self.dropDown.set_checked(index, True)
-            self.visible_traces.add(index)
+            self.visible_traces.add(label)
             self.trace_labels[index].show()
             if update_plot: self.update_plot()
 
     def hide_trace(self, index, update_plot=True):
-        if index in self.visible_traces:
+        label = self.trace_labels[index].text()
+        if label in self.visible_traces:
             self.dropDown.set_checked(index, False)
-            self.visible_traces.remove(index)
+            self.visible_traces.remove(label)
             self.trace_labels[index].hide()
             if update_plot: self.update_plot()
 
     def update_plot(self):
         self.plotWidget.clear()
-        for i in self.visible_traces:
-            x = np.arange(self.data.shape[1])*self.binsize+self.start_time
-            self.plotWidget.plot(x, self.data[i,:], pen=pg.mkPen(QColor(*self.colors[i])))
+        for label in self.visible_traces:
+            self.plotWidget.plot(*self.data[label].T, pen=pg.mkPen(QColor(*self.colors[label])))
 
     def update_controls_geometry(self): 
         self.controls.setGeometry(0, 0, self.width(), self.height())

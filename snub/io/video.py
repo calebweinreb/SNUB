@@ -57,7 +57,7 @@ def transform_azure_ir_stream(inpath, outpath=None, num_frames=None):
         outpath = os.path.splitext(inpath)[0]+'.mp4'
         if outpath==inpath:
             raise AssertionError('Cannot overwrite the input video. Make sure the input video does not end in .mp4 or specify an alternative `outpath`')
-    elif not os.path.splitext(inpath)[1]=='.mp4':
+    elif not os.path.splitext(outpath)[1]=='.mp4':
         raise AssertionError('`outpath` must end with .mp4')
         
     reader = imageio.get_reader(inpath, pixelformat='gray16', dtype='uint16')

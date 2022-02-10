@@ -7,11 +7,22 @@ import cv2
 import numpy as np
 import cmapy
 import time
+from numba import njit, prange
 
 from snub.gui.tracks import Track, TracePlot, TrackGroup
 from snub.gui.utils import cvImage_to_Qimage, AdjustColormapDialog
 
 
+@njit
+def map_heatmap_by_intervals(data, intervals, min_step):
+    intervals = intervals - intervals[0,0]
+    num_cols = int(intervals[-1,1]/min_step)
+    output = np.zeros((data.shape[0],num_cols))
+    for i in prange(intervals.shape[0]):
+        start = int(intervals[i,0]/min_step)
+        end = int(intervals[i,1]/min_step)
+        output[:,start:end] = data[:,i:i+1]
+    return output
 
 
 class HeatmapImage(Track):
@@ -110,7 +121,7 @@ class Heatmap(Track):
     display_trace_signal = pyqtSignal(int)
     
     def __init__(self, config, selected_intervals, labels_path=None, data_path=None, row_order_path=None,
-                 binsize=None, start_time=0, colormap='viridis', max_label_width=300, show_labels=False,
+                 intervals_path=None, start_time=0, colormap='viridis', max_label_width=300, show_labels=False,
                  label_color=(255,255,255), label_font_size=12, vmin=0, vmax=1, add_traceplot=False, 
                  vertical_range=None, **kwargs):
         super().__init__(config, **kwargs)
@@ -119,11 +130,12 @@ class Heatmap(Track):
         self.vmin,self.vmax = vmin,vmax
         self.colormap = colormap
         self.show_labels = show_labels
-        self.start_time = start_time
-        self.binsize = binsize
         self.add_traceplot = add_traceplot
+        self.min_step = config['min_step']
 
         self.data = np.load(os.path.join(config['project_directory'],data_path))
+        self.intervals = np.load(os.path.join(config['project_directory'],intervals_path))
+        self.start_time = self.intervals[0,0]
         if labels_path is None: self.labels = [str(i) for i in range(self.data.shape[0])]
         else: self.labels = open(os.path.join(config['project_directory'],labels_path),'r').read().split('\n')
         if row_order_path is None: self.row_order = np.arange(self.data.shape[0])
@@ -134,7 +146,7 @@ class Heatmap(Track):
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
         self.adjust_colormap_dialog.new_range.connect(self.update_colormap_range)
         self.heatmap_image = HeatmapImage(config, image=self.get_image_data(), start_time=start_time, 
-                                          binsize=binsize, vertical_range=self.vertical_range, parent=self)
+                                          binsize=self.min_step, vertical_range=self.vertical_range, parent=self)
         
         self.heatmap_labels = HeatmapLabels(self.labels, label_order=self.row_order, label_color=label_color, 
                                             vertical_range=self.vertical_range, max_label_width=max_label_width, parent=self)
@@ -183,10 +195,7 @@ class Heatmap(Track):
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
 
     def reorder_by_selection(self):
-        query_intervals = np.stack([
-            np.arange(self.data.shape[1])*self.binsize+self.start_time,
-            np.arange(1,self.data.shape[1]+1)*self.binsize+self.start_time], axis=1)
-        weights = self.selected_intervals.intersection_proportions(query_intervals)
+        weights = self.selected_intervals.intersection_proportions(self.intervals)
         activation = (self.data * weights).sum(1)
         self.update_row_order(np.argsort(activation)[::-1])
 
@@ -203,8 +212,14 @@ class Heatmap(Track):
         self.heatmap_image.set_image(image_data)
 
     def get_image_data(self):
-        data_scaled = np.clip((self.data[self.row_order]-self.vmin)/(self.vmax-self.vmin),0,1)*255
-        return cv2.applyColorMap(data_scaled.astype(np.uint8), cmapy.cmap(self.colormap))[:,:,::-1]
+        t = time.time()
+        data_remapped = map_heatmap_by_intervals(self.data, self.intervals, self.min_step)
+        print('a',time.time()-t)
+        t = time.time()
+        data_scaled = np.clip((data_remapped[self.row_order]-self.vmin)/(self.vmax-self.vmin),0,1)*255
+        image_data = cv2.applyColorMap(data_scaled.astype(np.uint8), cmapy.cmap(self.colormap))[:,:,::-1]
+        print('b',time.time()-t)
+        return image_data
 
     def update_colormap_range(self, vmin, vmax):
         self.vmin,self.vmax = vmin,vmax
@@ -264,9 +279,12 @@ class HeadedHeatmap(TrackGroup):
 class HeatmapTraceGroup(TrackGroup):
     def __init__(self, config, selected_intervals, trace_height_ratio=1, 
                  heatmap_height_ratio=2, height_ratio=1, **kwargs):
-        self.height_ratio = trace_height_ratio + heatmap_height_ratio
-        trace = TracePlot(config, height_ratio=trace_height_ratio, **kwargs)
+
         heatmap = Heatmap(config, selected_intervals, height_ratio=heatmap_height_ratio, **kwargs)
+        x = heatmap.intervals.mean(1)
+        trace_data = {l:np.vstack((x,d)).T for l,d in zip(heatmap.labels, heatmap.data)}
+        trace = TracePlot(config, height_ratio=trace_height_ratio, data=trace_data, **kwargs)
+
         height_ratio = trace_height_ratio+heatmap_height_ratio
         super().__init__(config, tracks={'trace':trace, 'heatmap':heatmap}, 
                     track_order=['trace','heatmap'], height_ratio=height_ratio, **kwargs)

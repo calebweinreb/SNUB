@@ -19,24 +19,23 @@ Load data
 
     import numpy as np
 
-    # Load (spike-sorted) ephys data
-    ephys_data = np.load('example_data/firings.npz')
-    spike_times = ephys_data['spike_indexes_seg0']
-    spike_labels = ephys_data['spike_labels_seg0']
+    # Load spike times (in )
+    spike_times = np.load('example_data_ephys/spike_times.npz')
+    spike_labels = np.load('example_data_ephys/spike_labels.npz')
 
     # Convert time unit to seconds
     spike_times = spike_times / 30000
 
     # Load video timestamps
-    video_timestamps = np.load('example_data/behavior_video_timestamps.npy')
+    video_timestamps = np.load('example_data_ephys/behavior_video_timestamps.npy')
 
     # Load moseq behavior labels
-    moseq_labels = np.load('example_data/moseq_labels.npy')
-    moseq_timestamps = np.load('example_data/moseq_timestamps.npy')
+    moseq_labels = np.load('example_data_ephys/moseq_labels.npy')
+    moseq_timestamps = np.load('example_data_ephys/moseq_timestamps.npy')
 
     # Load additional behavior variables
-    mouse_velocity = np.load('example_data/mouse_velocity.npy')
-    velocity_timestamps = np.load('example_data/mouse_velocity_timestamps.npy')
+    mouse_velocity = np.load('example_data_ephys/mouse_velocity.npy')
+    velocity_timestamps = np.load('example_data_ephys/mouse_velocity_timestamps.npy')
 
 
 
@@ -61,7 +60,7 @@ file below was generated using :py:meth:`snub.io.video.transform_azure_ir_stream
 
     # Add video
 
-    video_path = 'example_data/behavior_video.mp4'
+    video_path = 'example_data_ephys/behavior_video.mp4'
     snub.io.project.add_video(
         project_directory, 
         video_path, 

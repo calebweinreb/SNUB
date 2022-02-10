@@ -8,8 +8,31 @@ import pickle
 import colorsys
 from vidio import VideoReader
 
-def custom_formatwarning(msg, *args, **kwargs): return str(msg) + '\n'
-warnings.formatwarning = custom_formatwarning
+def generate_intervals(start_time, binsize, num_intervals):
+    """Generate an array of start/end times for non-overlapping
+    time intervals.
+
+    Parameters
+    ----------
+    start_time: float
+        Left bound of the first time interval
+
+    binsize: float
+        Width of each interval
+
+    num_intervals: int
+
+    Returns
+    -------
+        time_intervals: ndarray
+            Array of shape (num_intervals,2) containing the start 
+            and end times for each interval.
+    """
+    starts = np.arange(num_intervals)*binsize+start_time
+    ends = np.arange(1,num_intervals+1)*binsize+start_time
+    time_intervals = np.vstack((starts,ends)).T
+    return time_intervals
+
 
 def create_project(
     project_directory, 
@@ -126,6 +149,8 @@ def create_project(
     # create the config file
     if end_time is None: end_time = start_time + duration
     if init_current_time is None: init_current_time = start_time
+    if (end_time-start_time)/min_step > 200000: 
+        raise AssertionError('min_step={} is too small for the total duration {}. The maximum allowed ratio of `duration/min_step` is 200,000'.format(min_step, start_time-end_time))
 
     config = {
         'bounds': [start_time,end_time],
@@ -656,11 +681,7 @@ def add_scatter(
         if binsize is None or start_time is None:
             raise AssertionError(
                 'Either a `time_intervals` must be given or `binsize` and `start_time` must be specified')
-    
-        
-        starts = np.arange(num_points)*binsize+start_time
-        ends = np.arange(1,num_points+1)*binsize+start_time
-        time_intervals = np.vstack((starts,ends)).T
+        time_intervals = generate_intervals(start_time, binsize, num_points)
         print('Initializing time intervals using start_time={} and binsize={}'.format(start_time, binsize))
     
     # initialize features:
@@ -707,8 +728,9 @@ def add_heatmap(
     project_directory,
     name,
     data,
-    binsize,
-    start_time=0,
+    time_intervals=None,
+    binsize=None,
+    start_time=None,
     sort_method=None,
     labels=None,
     show_labels=False,
@@ -741,15 +763,23 @@ def add_heatmap(
         
     data : ndarray
         2D array where rows are variables and columns are time bins.
+
+    time_intervals : ndarray, default=None
+        Time interval (in seconds) associated with each column of the heatmap, 
+        given as a ``(N,2)`` array with ``[start,end]`` in each
+        row. If ``time_intervals=None``, then values for ``binsize``
+        and ``start_time`` must be given. 
+
+    binsize: float, default=None
+        Uniform time interval (in seconds) associated with each column of the
+        heatmap. It is assumed that the intervals have no gaps or overlaps. 
+        If this is not the case, use the ``time_intervals`` argument. 
         
-    binsize: float
-        Uniform time interval (in seconds) associated with each column
-        of the data array (explicit timestamps are not accepted).
+    start_time: float, default=None
+        Start time (in seconds) of the earliest time interval in the
+        heatmap. ``start_time`` is used in conjunction with
+        ``binsize`` to construct the time interval for each column.
         
-    start_time: float, default=0
-        Start time (in seconds) of the the time interval covered by the 
-        heatmap. ``start_time`` is used in conjunction with ``binsize``
-        to determine the placement of the heatmap along the timeline.
         
     sort_method: str/ndarray, default=None
         Method for sorting the rows of the heatmap. ``sort_method`` can 
@@ -829,7 +859,20 @@ def add_heatmap(
     data_path_abs = os.path.join(project_directory,data_path)
     np.save(data_path_abs, data)
     print('Saved heatmap data to '+data_path_abs)
+
+    # initialize/save time intervals
+    if time_intervals is None: 
+        if binsize is None or start_time is None:
+            raise AssertionError(
+                'Either a `time_intervals` must be given or `binsize` and `start_time` must be specified')
+        time_intervals = generate_intervals(start_time, binsize, data.shape[1])
+        print('Initializing time intervals using start_time={} and binsize={}'.format(start_time, binsize))
     
+    intervals_path = name+'.heatmap_intervals.npy'
+    intervals_path_abs = os.path.join(project_directory,intervals_path)
+    np.save(intervals_path_abs, time_intervals)
+    print('Saved time intervals to '+intervals_path_abs)
+
     # save labels
     if labels is None: 
         labels = [str(i) for i in range(data.shape[0])]
@@ -878,8 +921,7 @@ def add_heatmap(
     props = {
         'name': name,
         'data_path': data_path,
-        'binsize': binsize,
-        'start_time': start_time,
+        'intervals_path':intervals_path,
         'labels_path': labels_path,
         'show_labels': show_labels,
         'row_order_path': row_order_path,
@@ -986,7 +1028,15 @@ def add_spikeplot(
     heatmap_path = name+'.spikeplot_heatmap.npy'
     heatmap_path_abs = os.path.join(project_directory,heatmap_path)
     np.save(heatmap_path_abs, heatmap_data)
-    print('Saved heatmap data to '+heatmap_path_abs)
+    print('Saved firing rate data to '+heatmap_path_abs)
+
+    # save time intervals
+    time_intervals = generate_intervals(start_time, window_step, heatmap_data.shape[1])
+    intervals_path = name+'.spikeplot_intervals.npy'
+    intervals_path_abs = os.path.join(project_directory,intervals_path)
+    np.save(intervals_path_abs, time_intervals)
+    print('Saved time intervals to '+intervals_path_abs)
+
     
     # save labels
     if labels is None: 
@@ -1037,8 +1087,7 @@ def add_spikeplot(
         'name': name,
         'heatmap_path': heatmap_path,
         'spikes_path': spikes_path,
-        'binsize': window_step,
-        'start_time': start_time,
+        'intervals_path':intervals_path,
         'labels_path': labels_path,
         'row_order_path': row_order_path,
         'show_labels': show_labels,
