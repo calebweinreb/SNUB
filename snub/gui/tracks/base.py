@@ -202,10 +202,9 @@ class TrackOverlay(Track):
 
 class TrackGroup(Track, HeaderMixin):
     def __init__(self, config, tracks={}, track_order=None, **kwargs):
-        super().__init__(config)
+        super().__init__(config, **kwargs)
         assert len(tracks)>0
         self.tracks = tracks
-        self.height_ratio = np.sum([track.height_ratio for track in self.tracks.values()])
         if track_order is None: self.track_order = sorted(tracks.keys())
         else: self.track_order = track_order
         self.initUI(**kwargs)

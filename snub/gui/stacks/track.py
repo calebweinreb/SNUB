@@ -44,8 +44,6 @@ class TrackStack(Stack):
             track = HeadedTracePlot(config, **props)
             self.widgets.append(track)
 
-
-
         self.timeline.toggle_units_signal.connect(self.overlay.update_time_unit)
         self.initUI()
 
@@ -61,12 +59,11 @@ class TrackStack(Stack):
         self.splitter = QSplitter(Qt.Vertical)
         self.splitter.setChildrenCollapsible(False)
         for track in self.widgets[1:]: self.splitter.addWidget(track)
-        self.splitter.setSizes([w.height_ratio for w in self.widgets[1:]])
-
         layout = QVBoxLayout(self)
         layout.addWidget(self.splitter)
         layout.addWidget(self.timeline)
         layout.setContentsMargins(0, 0, 0, 0)
+        self.splitter.setSizes([w.height_ratio*1000 for w in self.widgets[1:]])
         self.overlay.raise_()
 
     def wheelEvent(self,event):

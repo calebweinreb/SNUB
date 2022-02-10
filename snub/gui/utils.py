@@ -188,7 +188,6 @@ class HeaderMixin():
 
         self.setStyleSheet("QWidget#trackGroup_header { background-color: rgb(30,30,30); }")
         self.header.setStyleSheet("QPushButton { color: rgb(150,150,150); border: 0px;}")
-
         self.update_layout()
 
 

@@ -26,19 +26,26 @@ def map_heatmap_by_intervals(data, intervals, min_step):
 
 
 class HeatmapImage(Track):
-    downsample_options=np.array([1,3,10,30,100,300,1000,3000,10000,30000,100000])
+    downsample_ratio = 3
+    downsample_powers = 10
     max_display_resolution=2000
 
     def __init__(self, config, image, start_time, binsize, vertical_range=None, parent=None):
         super().__init__(config, parent=parent)
+        t = time.time()
         self.binsize = binsize
         self.start_time = start_time
+        self.downsample_options = self.downsample_ratio**np.arange(self.downsample_powers)
         if vertical_range is None: self.vertical_range = [0,image.shape[0]]
         else: self.vertical_range = vertical_range
         self.set_image(image)
 
-    def set_image(self, image):
-        self.binned_images = [self.bin_image(image, width) for width in self.downsample_options]
+    def set_image(self, image_data):
+        self.binned_images = [image_data]
+        for i in range(self.downsample_powers):
+            cols = image_data.shape[1]//self.downsample_ratio
+            if cols>0: image_data = image_data[:,:cols*self.downsample_ratio].reshape(image_data.shape[0],cols,-1,3).mean(2)
+            self.binned_images.append(image_data.astype(np.uint8))
 
     def bin_image(self, image, width):
         image = image.astype(float)
@@ -125,7 +132,7 @@ class Heatmap(Track):
                  label_color=(255,255,255), label_font_size=12, vmin=0, vmax=1, add_traceplot=False, 
                  vertical_range=None, **kwargs):
         super().__init__(config, **kwargs)
-
+        t = time.time()
         self.selected_intervals = selected_intervals
         self.vmin,self.vmax = vmin,vmax
         self.colormap = colormap
@@ -136,22 +143,25 @@ class Heatmap(Track):
         self.data = np.load(os.path.join(config['project_directory'],data_path))
         self.intervals = np.load(os.path.join(config['project_directory'],intervals_path))
         self.start_time = self.intervals[0,0]
+
         if labels_path is None: self.labels = [str(i) for i in range(self.data.shape[0])]
         else: self.labels = open(os.path.join(config['project_directory'],labels_path),'r').read().split('\n')
+
         if row_order_path is None: self.row_order = np.arange(self.data.shape[0])
         else: self.row_order = np.load(os.path.join(config['project_directory'],row_order_path))
         self.initial_row_order = self.row_order.copy()
+
         if vertical_range is None: self.vertical_range = [0,self.data.shape[0]]
         else: self.vertical_range = vertical_range
+
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
         self.adjust_colormap_dialog.new_range.connect(self.update_colormap_range)
+
         self.heatmap_image = HeatmapImage(config, image=self.get_image_data(), start_time=start_time, 
                                           binsize=self.min_step, vertical_range=self.vertical_range, parent=self)
-        
+
         self.heatmap_labels = HeatmapLabels(self.labels, label_order=self.row_order, label_color=label_color, 
                                             vertical_range=self.vertical_range, max_label_width=max_label_width, parent=self)
-                                            
-        
 
     def update_current_range(self, current_range):
         self.current_range = current_range
@@ -212,13 +222,9 @@ class Heatmap(Track):
         self.heatmap_image.set_image(image_data)
 
     def get_image_data(self):
-        t = time.time()
         data_remapped = map_heatmap_by_intervals(self.data, self.intervals, self.min_step)
-        print('a',time.time()-t)
-        t = time.time()
         data_scaled = np.clip((data_remapped[self.row_order]-self.vmin)/(self.vmax-self.vmin),0,1)*255
         image_data = cv2.applyColorMap(data_scaled.astype(np.uint8), cmapy.cmap(self.colormap))[:,:,::-1]
-        print('b',time.time()-t)
         return image_data
 
     def update_colormap_range(self, vmin, vmax):
@@ -285,7 +291,6 @@ class HeatmapTraceGroup(TrackGroup):
         trace_data = {l:np.vstack((x,d)).T for l,d in zip(heatmap.labels, heatmap.data)}
         trace = TracePlot(config, height_ratio=trace_height_ratio, data=trace_data, **kwargs)
 
-        height_ratio = trace_height_ratio+heatmap_height_ratio
         super().__init__(config, tracks={'trace':trace, 'heatmap':heatmap}, 
                     track_order=['trace','heatmap'], height_ratio=height_ratio, **kwargs)
         heatmap.display_trace_signal.connect(trace.show_trace)

@@ -56,18 +56,6 @@ class ScrubbableViewBox(pg.ViewBox):
             pg.ViewBox.mouseDragEvent(self, event)
 
 
-# class ScatterPanel(Panel, HeaderMixin):
-#     eps = 1e-10
-
-#     def __init__(self, config, selected_intervals, 
-#                  data_path=None, name='', xlim=None, ylim=None, 
-#                  pointsize=10, linewidth=1, facecolor=(180,180,180), 
-#                  edgecolor=(100,100,100), selected_edgecolor=(255,255,0),
-#                  current_node_size=20, current_node_color=(255,0,0),
-#                  selection_intersection_threshold=0.5, **kwargs):
-
-
-
 
 class ScatterPanel(Panel, HeaderMixin):
     eps = 1e-10
@@ -181,6 +169,7 @@ class ScatterPanel(Panel, HeaderMixin):
 
         contextMenu.addMenu(colorby)
         contextMenu.setStyleSheet("""
+            QWidget { background-color : #3E3E3E; }
             QMenu::item, QLabel { background-color : #3E3E3E; padding: 10px 12px 10px 12px;}
             QMenu::item:selected, QLabel:hover { background-color: #999999;} """)
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
