@@ -7,9 +7,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 
-'''
-Timeline-related
-'''
+
+
 
 def time_to_position(current_range, width, t):
     pos_rel = (t - current_range[0]) / (current_range[1]-current_range[0])
@@ -19,10 +18,44 @@ def position_to_time(current_range, width, p):
     return p/width * (current_range[1]-current_range[0]) + current_range[0]
 
 
+class AdjustColormapDialog(QDialog):
+    new_range = pyqtSignal(float,float)
+    def __init__(self, parent, vmin, vmax):
+        super().__init__(parent)
+        self.parent = parent
+        self.vmin = QLineEdit(self,)
+        self.vmax = QLineEdit(self)
+        self.vmin.setText(str(vmin))
+        self.vmax.setText(str(vmax))
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self);
+        self.buttonBox.accepted.connect(self.accept_range)
+        self.buttonBox.rejected.connect(lambda: self.hide())
+
+        layout = QFormLayout(self)
+        layout.addRow("Colormap min", self.vmin)
+        layout.addRow("Colormap max", self.vmax)
+        layout.addWidget(self.buttonBox)
+
+    def update_range(self, vmin, vmax):
+        self.vmin.setText(str(vmin))
+        self.vmax.setText(str(vmax))
+
+    def accept_range(self):
+        try: 
+            vmin,vmax = float(self.vmin.text()), float(self.vmax.text())
+            self.new_range.emit(vmin, vmax)
+            self.hide()
+        except: pass
 
 '''
 Image-related
 '''
+
+def cvImage_to_Qimage(cvImage):
+    height, width, channel = cvImage.shape
+    bytesPerLine = 3 * width
+    img_data = np.require(cvImage, np.uint8, 'C')
+    return QImage(img_data, width, height, bytesPerLine, QImage.Format_RGB888)
 
 def numpy_to_qpixmap(image: np.ndarray) -> QPixmap:
     if isinstance(image.flat[0], np.floating):
@@ -34,9 +67,7 @@ def numpy_to_qpixmap(image: np.ndarray) -> QPixmap:
         format = QImage.Format_RGB888
     else:
         raise ValueError('Aberrant number of channels: {}'.format(C))
-    qpixmap = QPixmap(QImage(image, W,
-                                         H, image.strides[0],
-                                         format))
+    qpixmap = QPixmap(QImage(image, W,H, image.strides[0], format))
     return qpixmap
 
 
@@ -60,8 +91,8 @@ def sum_by_index(x, ixs, n):
 
 
 class SelectionIntervals():
-    def __init__(self, timestep):
-        self.timestep = timestep
+    def __init__(self, min_step):
+        self.min_step = min_step
         self.intervals = np.empty((0,2))
 
         
@@ -96,7 +127,7 @@ class SelectionIntervals():
         self.intervals = np.vstack((pre,pre_intersect,post_intersect,post))
         
     def preprocess_for_ncls(self, intervals):
-        intervals_discretized = (intervals/self.timestep).astype(int)
+        intervals_discretized = (intervals/self.min_step).astype(int)
         return (intervals_discretized[:,0].copy(order='C'),
                 intervals_discretized[:,1].copy(order='C'),
                 np.arange(intervals_discretized.shape[0]))
@@ -157,6 +188,7 @@ class HeaderMixin():
 
         self.setStyleSheet("QWidget#trackGroup_header { background-color: rgb(30,30,30); }")
         self.header.setStyleSheet("QPushButton { color: rgb(150,150,150); border: 0px;}")
+
         self.update_layout()
 
 

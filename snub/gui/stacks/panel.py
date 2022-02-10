@@ -7,34 +7,32 @@ from snub.gui.stacks import Stack
 from snub.gui.panels import MeshPanel, VideoPanel, ScatterPanel
 
 class PanelStack(Stack):
-    def __init__(self, config, selected_intervals, **kwargs):
-        super().__init__(config, selected_intervals, **kwargs)
+    def __init__(self, config, selected_intervals):
+        super().__init__(config, selected_intervals)
+        self.size_ratio = config['panels_size_ratio']
 
-        for scatter_props in config['scatters']: # initialize scatter plots
-            scatter_panel = ScatterPanel(config, self.selected_intervals, **scatter_props)
-            self.widgets.append(scatter_panel)
+        for props in config['scatter']: # initialize scatter plots
+            panel = ScatterPanel(config, self.selected_intervals, **props)
+            self.widgets.append(panel)
 
-        for video_props in config['videos']: # initialize videos
-            video_frame = VideoPanel(config, **video_props)
-            self.widgets.append(video_frame)
+        for props in config['video']: # initialize video
+            panel = VideoPanel(config, **props)
+            self.widgets.append(panel)
 
-        for mesh_props in config['meshes']:
-            mesh_vis = MeshPanel(config, **mesh_props)
-            self.widgets.append(mesh_vis)
+        for props in config['mesh']:
+            panel = MeshPanel(config, **props)
+            self.widgets.append(panel)
 
         self.initUI()
 
 
     def initUI(self):
-        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(1)
-        self.setSizePolicy(sizePolicy)
+        super().initUI()
 
         hbox = QHBoxLayout(self)
         self.splitter = QSplitter(Qt.Vertical)
-        for i,panel in enumerate(self.widgets):
-            self.splitter.addWidget(panel)
-            self.splitter.setStretchFactor(i, panel.size_ratio)
+        for panel in self.widgets: self.splitter.addWidget(panel)
+        self.splitter.setSizes([w.size_ratio for w in self.widgets])
 
         hbox.addWidget(self.splitter)
         self.splitter.setSizes([100000*p.size_ratio for p in self.widgets])

@@ -5,10 +5,11 @@ import pyqtgraph as pg
 import numpy as np
 import time
 import os
-
+import cmapy
+from functools import partial
 from ncls import NCLS
 from snub.gui.panels import Panel
-from snub.gui.utils import HeaderMixin
+from snub.gui.utils import HeaderMixin, AdjustColormapDialog
 
 
 
@@ -54,36 +55,58 @@ class ScrubbableViewBox(pg.ViewBox):
         if not modifiers in [Qt.ShiftModifier,Qt.ControlModifier]:
             pg.ViewBox.mouseDragEvent(self, event)
 
+
+# class ScatterPanel(Panel, HeaderMixin):
+#     eps = 1e-10
+
+#     def __init__(self, config, selected_intervals, 
+#                  data_path=None, name='', xlim=None, ylim=None, 
+#                  pointsize=10, linewidth=1, facecolor=(180,180,180), 
+#                  edgecolor=(100,100,100), selected_edgecolor=(255,255,0),
+#                  current_node_size=20, current_node_color=(255,0,0),
+#                  selection_intersection_threshold=0.5, **kwargs):
+
+
+
+
 class ScatterPanel(Panel, HeaderMixin):
+    eps = 1e-10
 
     def __init__(self, config, selected_intervals, 
                  data_path=None, name='', xlim=None, ylim=None, 
-                 pointsize=20, linewidth=1, facecolor=(180,180,180), 
-                 edgecolor=(100,100,100), selected_edgecolor=(255,255,0),
-                 current_node_size=20, current_node_color=(255,0,0),
-                 selection_intersection_threshold=0.5, **kwargs):
+                 pointsize=10, linewidth=1, facecolor=(180,180,180), 
+                 edgecolor=(0,0,0), selected_edgecolor=(255,255,0),
+                 current_node_size=20, current_node_color=(255,0,0), colormap='viridis',
+                 selection_intersection_threshold=0.5, feature_labels=[], **kwargs):
 
         super().__init__(config, **kwargs)
         assert data_path is not None
         self.selected_intervals = selected_intervals
         self.bounds = config['bounds']
-        self.timestep = config['timestep']
+        self.min_step = config['min_step']
         self.xlim = xlim
         self.ylim = ylim
         self.pointsize = pointsize
         self.linewidth = linewidth
         self.facecolor = facecolor
         self.edgecolor = edgecolor
+        self.colormap = colormap
         self.selected_edgecolor = selected_edgecolor
         self.current_node_size = current_node_size
         self.current_node_color = current_node_color
         self.selection_intersection_threshold = selection_intersection_threshold
+        self.feature_labels = ['Interval start','Interval end']+feature_labels
+        self.vmin,self.vmax = 0,1
+        self.current_feature_label = '(No color)'
+        self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
 
         self.data = np.load(os.path.join(config['project_directory'],data_path))
-        self.ncls = NCLS(*(self.data[:,2:]/self.timestep).astype(int).T, np.arange(self.data.shape[0]))
+        self.data[:,2:4] = self.data[:,2:4] + np.array([-self.eps, self.eps])
+        self.ncls = NCLS(*(self.data[:,2:4]/self.min_step).astype(int).T, np.arange(self.data.shape[0]))
 
         self.viewBox = ScrubbableViewBox()
         self.plot = pg.PlotWidget(viewBox=self.viewBox)
+        self.plot.setMenuEnabled(False)
         self.selection_rect = SelectionRectangle()
         self.scatter = pg.ScatterPlotItem()
         self.scatter_selected = pg.ScatterPlotItem()
@@ -98,12 +121,7 @@ class ScatterPanel(Panel, HeaderMixin):
         self.layout.addWidget(self.plot)
         self.current_node_brush = pg.mkBrush(color=self.current_node_color)
         self.current_node_scatter.setData(size=self.current_node_size, brush=self.current_node_brush)
-        self.scatter.setData(pos=self.data[:,:2], data=np.arange(self.data.shape[0]), 
-                             brush=pg.mkBrush(color=self.facecolor), size=self.pointsize, 
-                             pen=pg.mkPen(color=self.edgecolor, width=self.linewidth))
-        self.scatter_selected.setData(pos=self.data[:,:2], data=np.arange(self.data.shape[0]), 
-                             brush=pg.mkBrush(color=self.facecolor), size=self.pointsize,
-                             pen=pg.mkPen(color=self.selected_edgecolor, width=self.linewidth))
+        self.update_scatter_data()
         self.scatter_selected.setPointsVisible(np.zeros(self.data.shape[0]))
         self.selection_rect.hide()
         self.plot.setClipToView(False)
@@ -128,11 +146,65 @@ class ScatterPanel(Panel, HeaderMixin):
         if self.ylim is not None: self.plot.setYRange(max(self.ylim[0],ymin_padded),min(self.ylim[1],ymax_padded))
 
 
+    def update_scatter_data(self):
+        if self.current_feature_label in self.feature_labels:
+            x = self.data[:,2+self.feature_labels.index(self.current_feature_label)]
+            x = np.clip((x - self.vmin) / (self.vmax - self.vmin), 0, 1)
+            brush = pg.colormap.get(self.colormap,'matplotlib').map(x,'qcolor')
+        else: brush = pg.mkBrush(color=self.facecolor)
+        self.scatter.setData(
+            pos=self.data[:,:2], data=np.arange(self.data.shape[0]), brush=brush, 
+            pen=pg.mkPen(color=self.edgecolor, width=self.linewidth), size=self.pointsize)
+        self.scatter_selected.setData(
+            pos=self.data[:,:2], data=np.arange(self.data.shape[0]), brush=brush,
+            pen=pg.mkPen(color=self.selected_edgecolor, width=self.linewidth), size=self.pointsize)
+        self.update_selected_intervals()
+
+
+    def contextMenuEvent(self, event):
+        menu_options = [('Adjust colormap range', self.show_adjust_colormap_dialog)]
+        contextMenu = QMenu(self)
+        for name,slot in menu_options:
+            label = QLabel(name)
+            action = QWidgetAction(self)
+            action.setDefaultWidget(label)
+            action.triggered.connect(slot)
+            contextMenu.addAction(action)
+
+        colorby = QMenu('Color by...', contextMenu)
+        for name in self.feature_labels+['(No color)']:
+            label = QLabel(name)
+            action = QWidgetAction(self)
+            action.setDefaultWidget(label)
+            action.triggered.connect(partial(self.colorby,name))
+            colorby.addAction(action)
+
+        contextMenu.addMenu(colorby)
+        contextMenu.setStyleSheet("""
+            QMenu::item, QLabel { background-color : #3E3E3E; padding: 10px 12px 10px 12px;}
+            QMenu::item:selected, QLabel:hover { background-color: #999999;} """)
+        action = contextMenu.exec_(self.mapToGlobal(event.pos()))
+
+    def update_colormap_range(self, vmin, vmax):
+        self.vmin,self.vmax = vmin,vmax
+        self.update_scatter_data()
+
+    def show_adjust_colormap_dialog(self):
+        self.adjust_colormap_dialog.show()
+
+    def colorby(self, label):
+        self.current_feature_label = label
+        if label in self.feature_labels:
+            x = self.data[:,2+self.feature_labels.index(label)]
+            self.vmin,self.vmax = x.min(),x.max()
+            self.adjust_colormap_dialog.update_range(self.vmin,self.vmax)
+        self.update_scatter_data()
 
     def update_current_time(self, t):
-        use_t = np.array([t / self.timestep]).astype(int)
+        use_t = np.array([t / self.min_step]).astype(int)
         current_nodes = self.ncls.all_containments_both(use_t,use_t+1,np.array([0]))[1]
-        current_nodes_pos = self.data[current_nodes,:2]
+        valid = np.all([self.data[current_nodes][:,2]<=t, self.data[current_nodes][:,3]>=t],axis=0)
+        current_nodes_pos = self.data[current_nodes,:2][valid]
         self.current_node_scatter.setData(pos=current_nodes_pos)
 
 
@@ -140,7 +212,7 @@ class ScatterPanel(Panel, HeaderMixin):
         modifiers = QApplication.keyboardModifiers()
         if not modifiers in [Qt.ShiftModifier, Qt.ControlModifier]:
             index = points[0].index()
-            new_time = self.data[index,2:].mean()
+            new_time = self.data[index,2:4].mean()
             self.new_current_time.emit(new_time)
 
     def drag_event(self, event, modifiers):
@@ -163,11 +235,11 @@ class ScatterPanel(Panel, HeaderMixin):
         if modifiers == Qt.ShiftModifier: selection_value = 1
         if modifiers == Qt.ControlModifier: selection_value = 0
         enclosed_points = np.all([self.data[:,:2]>=top_left, self.data[:,:2]<=bottom_right],axis=0).all(1).nonzero()[0]
-        self.selection_change.emit(list(self.data[enclosed_points,2:]), [selection_value]*len(enclosed_points))
+        self.selection_change.emit(list(self.data[enclosed_points,2:4]), [selection_value]*len(enclosed_points))
 
 
     def update_selected_intervals(self):
-        intersections = self.selected_intervals.intersection_proportions(self.data[:,2:])
+        intersections = self.selected_intervals.intersection_proportions(self.data[:,2:4])
         selected_points = intersections > self.selection_intersection_threshold
         self.scatter_selected.setPointsVisible(selected_points)
 

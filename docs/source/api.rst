@@ -1,36 +1,20 @@
 Browser API
 ===========
 
-Main
-----
+snub.io.project
+---------------
 
-.. automodule:: snub.gui.main
+.. automodule:: snub.io.project
     :members:
 
+snub.io.manifold
+----------------
 
-Stacks
-------
-
-.. automodule:: snub.gui.stacks
+.. automodule:: snub.io.manifold
     :members:
 
-Tracks
-------
+snub.io.video
+-------------
 
-
-.. automodule:: snub.gui.tracks
-    :members:
-
-
-Panels
-------
-
-.. automodule:: snub.gui.panels
-    :members:
-
-
-Utils
------
-
-.. automodule:: snub.gui.utils
+.. automodule:: snub.io.video
     :members:

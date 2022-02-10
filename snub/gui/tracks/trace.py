@@ -6,7 +6,7 @@ import colorsys
 import numpy as np
 import os
 
-from snub.gui.tracks import Track
+from snub.gui.tracks import Track, TrackGroup
 
 class CheckableComboBox(QComboBox):
     toggleSignal = pyqtSignal(bool, int)
@@ -37,9 +37,9 @@ class CheckableComboBox(QComboBox):
 
 
 
-class Trace(Track):
+class TracePlot(Track):
     def __init__(self, config, data_path=None, binsize=None, labels=None, start_time=0,
-                 initial_visible_traces=[0], controls_padding_right=10, colors=None,
+                 initial_visible_traces=None, controls_padding_right=10, colors=None,
                  yaxis_width=30, controls_padding_top=5, trace_label_margin=4, **kwargs):
 
         super().__init__(config, **kwargs)
@@ -50,7 +50,8 @@ class Trace(Track):
         self.trace_label_margin = trace_label_margin
 
         self.data = np.load(os.path.join(config['project_directory'],data_path))
-        self.visible_traces = set(initial_visible_traces)
+        if initial_visible_traces is not None: self.visible_traces = set(initial_visible_traces)
+        else: self.visible_traces = set([np.random.randint(self.data.shape[0])])
 
         if labels is not None: assert len(labels)==self.data.shape[0]
         else: labels = [str(i) for i in range(self.data.shape[0])]
@@ -157,4 +158,9 @@ class Trace(Track):
         self.update_Xrange()
         self.update_controls_geometry()
 
+
+class HeadedTracePlot(TrackGroup):
+    def __init__(self, config, **kwargs):
+        trace = TracePlot(config, **kwargs)
+        super().__init__(config, tracks={'trace':trace}, track_order=['trace'], **kwargs)
 

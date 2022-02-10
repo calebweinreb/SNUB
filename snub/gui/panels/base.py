@@ -7,9 +7,10 @@ class Panel(QWidget):
     new_current_time = pyqtSignal(float)
     selection_change = pyqtSignal(list,list)
 
-    def __init__(self, config, size_ratio=1, **kwargs):
+    def __init__(self, config, size_ratio=1, order=0, **kwargs):
         super().__init__()
         self.size_ratio = size_ratio
+        self.order = order
         self.layout_mode = config['layout_mode']
 
     def update_selected_intervals(self):

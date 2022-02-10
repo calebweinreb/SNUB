@@ -14,13 +14,15 @@ Video code was borrowed and modified from
 https://github.com/jbohnslav/pose_annotator/blob/master/pose_annotator/gui/custom_widgets.py
 '''
 
+
+
 class VideoPanel(Panel, HeaderMixin):
 
     def __init__(self, config, video_path=None, timestamps_path=None, **kwargs):
         super().__init__(config, **kwargs)
         self.video_frame = VideoFrame(os.path.join(config['project_directory'],video_path))
         self.timestamps = np.load(os.path.join(config['project_directory'],timestamps_path))
-        self.update_current_time(config['current_time'])
+        self.update_current_time(config['init_current_time'])
         self.initUI(**kwargs)
 
     def initUI(self, **kwargs):
@@ -30,7 +32,7 @@ class VideoPanel(Panel, HeaderMixin):
         self.video_frame.update()
 
     def update_current_time(self, t):
-        i = min(self.timestamps.searchsorted(t), len(self.timestamps))
+        i = min(self.timestamps.searchsorted(t), len(self.timestamps)-1)
         self.video_frame.show_frame(i)
 
 

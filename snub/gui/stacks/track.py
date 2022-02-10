@@ -4,10 +4,8 @@ from PyQt5.QtGui import *
 import numpy as np
 
 from snub.gui.stacks import Stack
-from snub.gui.tracks import HeatmapTraceGroup, TrackOverlay, Timeline 
-from snub.gui.utils import time_to_position, position_to_time
-
-
+from snub.gui.tracks import *
+from snub.gui.utils import position_to_time, time_to_position
 
 
 
@@ -15,12 +13,13 @@ class TrackStack(Stack):
     new_current_time = pyqtSignal(float)
     selection_change = pyqtSignal(list, list)
 
-    def __init__(self, config, selected_intervals, zoom_gain=0.003, min_range=0.1, **kwargs):
-        super().__init__(config, selected_intervals, **kwargs)
+    def __init__(self, config, selected_intervals):
+        super().__init__(config, selected_intervals)
         self.bounds = config['bounds']
-        self.track_playhead_policy = config['track_playhead']
-        self.zoom_gain = zoom_gain
-        self.min_range = min_range
+        self.center_playhead_policy = config['center_playhead']
+        self.zoom_gain = config['zoom_gain']
+        self.min_range = config['min_range']
+        self.size_ratio = config['tracks_size_ratio']
         self.current_range = self.bounds
         self.selection_drag_mode = 0 # +1 for shift-click, -1 for command-click
         self.selection_drag_initial_time = None
@@ -28,9 +27,25 @@ class TrackStack(Stack):
         self.overlay = TrackOverlay(config, self, selected_intervals)
         self.timeline = Timeline(config)
         self.widgets = [self.timeline]
-        for heatmap_props in config['heatmaps']:
-            track = HeatmapTraceGroup(config, self.selected_intervals, **heatmap_props)
+
+        for props in config['heatmap']:
+            if props['add_traceplot']:
+                track = HeatmapTraceGroup(config, self.selected_intervals, **props)
+            else: track = HeadedHeatmap(config, self.selected_intervals, **props)
             self.widgets.append(track)
+
+        for props in config['spikeplot']:
+            if props['add_traceplot']:
+                track = SpikePlotTraceGroup(config, self.selected_intervals, **props)
+            else: track = HeadedSpikePlot(config, self.selected_intervals, **props)
+            self.widgets.append(track)
+
+        for props in config['traceplot']:
+            track = HeadedTracePlot(config, **props)
+            self.widgets.append(track)
+
+
+
         self.timeline.toggle_units_signal.connect(self.overlay.update_time_unit)
         self.initUI()
 
@@ -41,14 +56,12 @@ class TrackStack(Stack):
         return position_to_time(self.current_range, self.width(), p)
 
     def initUI(self):
-        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(2)
-        self.setSizePolicy(sizePolicy)
+        super().initUI()
+
         self.splitter = QSplitter(Qt.Vertical)
         self.splitter.setChildrenCollapsible(False)
-        for i,track in enumerate(self.widgets[1:]):
-            self.splitter.addWidget(track)
-            self.splitter.setStretchFactor(i, track.height_ratio)
+        for track in self.widgets[1:]: self.splitter.addWidget(track)
+        self.splitter.setSizes([w.height_ratio for w in self.widgets[1:]])
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.splitter)
@@ -116,7 +129,7 @@ class TrackStack(Stack):
             child.update_current_range(self.current_range)
 
     def update_current_time(self, t):
-        self.overlay.vlines['cursor']['time'] = t
+        self.overlay.markers['cursor']['time'] = t
         self.overlay.update()
 
     def update_selected_intervals(self):

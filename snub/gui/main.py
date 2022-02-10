@@ -51,29 +51,30 @@ class ProjectTab(QWidget):
         super().__init__()
         # load config
         self.project_directory = project_directory
+        self.layout_mode = None
+
         config_path = os.path.join(self.project_directory,'config.json')
         config = json.load(open(config_path,'r'))
         config,error_messages = self.validate_and_autofill_config(config)
         if len(error_messages) > 0: 
             self.config_error(config_path, error_messages)
             return
-            #self.close_tab()
-  
+
         # initialize state variables
         self.playing = False
         self.bounds = config['bounds']
         self.layout_mode = config['layout_mode']
-        self.current_time = config['current_time']
+        self.current_time = config['init_current_time']
         self.play_speed = config['initial_playspeed']
-        self.animation_step = config['animation_step']
-        self.track_playhead = config['track_playhead']
+        self.animation_step = 1/config['animation_fps']
+        self.center_playhead = config['center_playhead']
 
         # keep track of current selection
-        self.selected_intervals = SelectionIntervals(timestep=config['timestep'])
+        self.selected_intervals = SelectionIntervals(min_step=config['min_step'])
         
         # create major gui elements
-        self.panelStack = PanelStack(config, self.selected_intervals, **config['panel_props'])
-        self.trackStack = TrackStack(config, self.selected_intervals, **config['track_props'])
+        self.panelStack = PanelStack(config, self.selected_intervals)
+        self.trackStack = TrackStack(config, self.selected_intervals)
 
         # timer for live play
         self.timer = QTimer(self)
@@ -82,8 +83,8 @@ class ProjectTab(QWidget):
         self.play_button = QPushButton()
         self.speed_slider = QSlider(Qt.Horizontal)
         self.speed_label = QLabel()
-        self.track_playhead_checkbox = CheckBox(self.track_playhead)
-        self.track_playhead_checkbox.state_change.connect(self.update_track_playhead)
+        self.center_playhead_checkbox = CheckBox(self.center_playhead)
+        self.center_playhead_checkbox.state_change.connect(self.update_center_playhead)
 
         # connect signals and slots
         self.speed_slider.valueChanged.connect(self.change_play_speed)
@@ -130,7 +131,7 @@ class ProjectTab(QWidget):
         buttons.addWidget(self.speed_slider)
         buttons.addWidget(self.speed_label)
         buttons.addSpacing(20)
-        buttons.addWidget(self.track_playhead_checkbox)
+        buttons.addWidget(self.center_playhead_checkbox)
         label = QLabel('Track Playhead')
         label.setFixedHeight(25)
         buttons.addWidget(label)
@@ -141,36 +142,48 @@ class ProjectTab(QWidget):
         layout.addLayout(buttons)
         self.change_layout_mode(self.layout_mode)
 
-    def update_track_playhead(self, checkstate):
-        self.track_playhead = checkstate
-        if self.track_playhead: self.trackStack.center_at_time(self.current_time)
+    def update_center_playhead(self, checkstate):
+        self.center_playhead = checkstate
+        if self.center_playhead: self.trackStack.center_at_time(self.current_time)
 
     def validate_and_autofill_config(self,config):
         error_messages = []
+        config['project_directory'] = self.project_directory 
+
         for k in ['bounds']:
             if not k in config:
                 error_messages.append('config is missing the key "{}"'.format(k))
 
-        config['project_directory'] = self.project_directory
-        if not 'layout_mode' in config: config['layout_mode'] = 'columns'
-        if not 'timestep' in config: config['timestep'] = 1/30
-        if not 'current_time' in config: config['current_time'] = 0
-        if not 'initial_playspeed' in config: config['initial_playspeed'] = 1
-        if not 'animation_step' in config: config['animation_step'] = 1/30
-        if not 'track_playhead' in config: config['track_playhead'] = False
-        if not 'track_props' in config: config['track_props'] = {}
-        if not 'panel_props' in config: config['panel_props'] = {}
-        if not 'spikeplots' in config: config['spikeplots'] = []
-        if not 'scatters' in config: config['scatters'] = []
-        if not 'heatmaps' in config: config['heatmaps'] = []
-        if not 'videos' in config: config['videos'] = []
-        if not 'meshes' in config: config['meshes'] = []
-        if not 'vlines' in config: config['vlines'] = {}
+        if not 'init_current_time' in config: 
+            if 'bounds' in config: config['init_current_time'] = config['bounds'][0]
+            else: config['init_current_time'] = 0
+
+        default_config = {
+            'layout_mode': 'columns',
+            'min_step': 1/30,
+            'zoom_gain': 0.003,
+            'min_range': 0.01,
+            'initial_playspeed': 1,
+            'animation_fps': 30,
+            'center_playhead': False,
+            'panels_size_ratio':1,
+            'tracks_size_ratio':2,
+            'spikeplot': [],
+            'traceplot':[],
+            'scatter': [],
+            'heatmap': [],
+            'video': [],
+            'mesh': [],
+            'markers': {}}
+
+        for key,value in default_config.items():
+            if not key in config:
+                config[key] = value
 
         for widget_name, requred_keys in {
-            'heatmaps': ['data_path', 'binsize'],
-            'videos': ['video_path', 'timestamps_path'],
-            'meshes': ['data_path', 'faces_path', 'timestamps_path']
+            'heatmap': ['name', 'data_path', 'binsize','add_traceplot'],
+            'video': ['name', 'video_path', 'timestamps_path'],
+            'mesh': ['name', 'data_path', 'faces_path', 'timestamps_path']
         }.items():
             for props in config[widget_name]:
                 for k in requred_keys:
@@ -233,7 +246,7 @@ class ProjectTab(QWidget):
         if new_time >= self.bounds[1]:
             new_time = self.bounds[0]
         self.update_current_time(new_time)
-        if self.track_playhead:
+        if self.center_playhead:
             self.trackStack.center_at_time(self.current_time)
 
     def toggle_play_state(self):
@@ -267,7 +280,7 @@ class MainWindow(QMainWindow):
 
         open_project = QAction("&Open Project", self)
         open_project.setShortcut("Ctrl+O")
-        open_project.triggered.connect(self.open_project)
+        open_project.triggered.connect(self.open)
 
         reload_data = QAction("&Reload Data", self)
         reload_data.setShortcut("Ctrl+R")
@@ -306,9 +319,7 @@ class MainWindow(QMainWindow):
 
 
         # try to open projects that are passed as command line arguments
-        for a in args:
-            if os.path.exists(a): 
-                self.load_project(a)
+        self.open(args)
 
 
     def deselect_all(self):
@@ -330,8 +341,9 @@ class MainWindow(QMainWindow):
     def close_tab(self, i):
         self.tabs.removeTab(i)
 
-    def open_project(self):
-        project_directories = self.getExistingDirectories()
+    def open(self, project_directories=None):
+        if project_directories is None:
+            project_directories = self.getExistingDirectories()
         error_directories = []
         for project_dir in project_directories:
             if len(project_dir)>0:
