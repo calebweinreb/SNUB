@@ -132,7 +132,7 @@ class HeatmapLabels(QWidget):
 
 
 class Heatmap(Track):
-    display_trace_signal = pyqtSignal(int)
+    display_trace_signal = pyqtSignal(str)
     
     def __init__(self, config, selected_intervals, labels_path=None, data_path=None, row_order_path=None,
                  intervals_path=None, start_time=0, colormap='viridis', max_label_width=300, show_labels=False,
@@ -182,9 +182,9 @@ class Heatmap(Track):
 
         if self.add_traceplot:
             y = event.y()/self.height()*(self.vertical_range[1]-self.vertical_range[0])+self.vertical_range[0]
-            trace_index = self.row_order[int(y)]
-            display_trace_slot = lambda: self.display_trace_signal.emit(trace_index)
-            menu_options.insert(0,('Dislay trace {}'.format(trace_index), display_trace_slot))
+            row_label = self.labels[self.row_order[int(y)]]
+            display_trace_slot = lambda: self.display_trace_signal.emit(row_label)
+            menu_options.insert(0,('Plot trace: {}'.format(row_label), display_trace_slot))
 
         contextMenu = QMenu(self)
         for name,slot in menu_options:

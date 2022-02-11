@@ -71,6 +71,7 @@ class TracePlot(Track):
         self.plotWidget.showGrid(x=False, y=True, alpha = 0.5)  
         self.plotWidget.getAxis('left').setWidth(yaxis_width)
 
+        self.label_order = []
         self.trace_labels = []
         for label in self.data:
             self.dropDown.addItem(label, self.colors[label], checked=(label in self.visible_traces))
@@ -80,6 +81,7 @@ class TracePlot(Track):
             trace_label.pressed.connect(self.trace_label_button_push)
             #trace_label.setMargin(self.trace_label_margin)
             if not label in self.visible_traces: trace_label.hide()
+            self.label_order.append(label)
             self.trace_labels.append(trace_label)
     
         self.initUI()
@@ -87,8 +89,7 @@ class TracePlot(Track):
         
 
     def trace_label_button_push(self):
-        index = self.trace_labels.index(self.sender())
-        self.hide_trace(index)
+        self.hide_trace(self.sender().text())
 
     def get_random_color(self):
         hue = np.random.uniform(0,1)
@@ -116,21 +117,22 @@ class TracePlot(Track):
             self.hide_trace(i, update_plot=False)
         self.update_plot()
 
-    def toggle_trace(self, state, i):
-        if state: self.show_trace(i)
-        else: self.hide_trace(i)
+    def toggle_trace(self, state, index):
+        label = self.label_order[index]
+        if state: self.show_trace(label)
+        else: self.hide_trace(label)
 
-    def show_trace(self, index, update_plot=True):
-        label = self.trace_labels[index].text()
+    def show_trace(self, label, update_plot=True):
         if not label in self.visible_traces:
+            index = self.label_order.index(label)
             self.dropDown.set_checked(index, True)
             self.visible_traces.add(label)
             self.trace_labels[index].show()
             if update_plot: self.update_plot()
 
-    def hide_trace(self, index, update_plot=True):
-        label = self.trace_labels[index].text()
+    def hide_trace(self, label, update_plot=True):
         if label in self.visible_traces:
+            index = self.label_order.index(label)
             self.dropDown.set_checked(index, False)
             self.visible_traces.remove(label)
             self.trace_labels[index].hide()
