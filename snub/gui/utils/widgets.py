@@ -1,21 +1,9 @@
-import numpy as np
-from ncls import NCLS
-from numba import njit, prange
-import os
+import numpy as np, os
 from pyqtgraph import VerticalLabel
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 
-
-
-
-def time_to_position(current_range, width, t):
-    pos_rel = (t - current_range[0]) / (current_range[1]-current_range[0])
-    return pos_rel * width
-
-def position_to_time(current_range, width, p):
-    return p/width * (current_range[1]-current_range[0]) + current_range[0]
 
 
 class AdjustColormapDialog(QDialog):
@@ -47,113 +35,6 @@ class AdjustColormapDialog(QDialog):
             self.hide()
         except: pass
 
-'''
-Image-related
-'''
-
-def cvImage_to_Qimage(cvImage):
-    height, width, channel = cvImage.shape
-    bytesPerLine = 3 * width
-    img_data = np.require(cvImage, np.uint8, 'C')
-    return QImage(img_data, width, height, bytesPerLine, QImage.Format_RGB888)
-
-def numpy_to_qpixmap(image: np.ndarray) -> QPixmap:
-    if isinstance(image.flat[0], np.floating):
-        image = float_to_uint8(image)
-    H, W, C = int(image.shape[0]), int(image.shape[1]), int(image.shape[2])
-    if C == 4:
-        format = QImage.Format_RGBA8888
-    elif C == 3:
-        format = QImage.Format_RGB888
-    else:
-        raise ValueError('Aberrant number of channels: {}'.format(C))
-    qpixmap = QPixmap(QImage(image, W,H, image.strides[0], format))
-    return qpixmap
-
-
-def float_to_uint8(image: np.ndarray) -> np.ndarray:
-    if image.dtype == np.float:
-        image = (image * 255).clip(min=0, max=255).astype(np.uint8)
-    return image
-
-
-'''
-For quickly finding intervals overlaps. Used to store the currently selected intervals
-'''
-
-@njit 
-def sum_by_index(x, ixs, n):
-    out = np.zeros(n)
-    for i in prange(len(ixs)):
-        out[ixs[i]] += x[i]
-    return out
-
-
-
-class SelectionIntervals():
-    def __init__(self, min_step):
-        self.min_step = min_step
-        self.intervals = np.empty((0,2))
-
-        
-    def partition_intervals(self, start, end):
-        ends_before = self.intervals[:,1] < start
-        ends_after = self.intervals[:,1] >= start
-        starts_before = self.intervals[:,0] <= end
-        starts_after = self.intervals[:,0] > end
-        intersect = self.intervals[np.bitwise_and(ends_after, starts_before)]
-        pre = self.intervals[ends_before]
-        post = self.intervals[starts_after]
-        return pre,intersect,post
-        
-        
-    def add_interval(self, start, end):
-        pre,intersect,post = self.partition_intervals(start,end)
-        if intersect.shape[0] > 0:
-            merged_start = np.minimum(intersect[0,0],start)
-            merged_end = np.maximum(intersect[-1,1],end)
-        else: 
-            merged_start, merged_end = start, end
-        merged_interval = np.array([merged_start, merged_end]).reshape(1,2)
-        self.intervals = np.vstack((pre, merged_interval, post))
-
-    def remove_interval(self, start, end):
-        pre,intersect,post = self.partition_intervals(start,end)
-        pre_intersect = np.empty((0,2))
-        post_intersect = np.empty((0,2))
-        if intersect.shape[0] > 0:
-            if intersect[0,0] < start: pre_intersect = np.array([intersect[0,0],start])
-            if intersect[-1,1] > end: post_intersect = np.array([end,intersect[-1,1]])
-        self.intervals = np.vstack((pre,pre_intersect,post_intersect,post))
-        
-    def preprocess_for_ncls(self, intervals):
-        intervals_discretized = (intervals/self.min_step).astype(int)
-        return (intervals_discretized[:,0].copy(order='C'),
-                intervals_discretized[:,1].copy(order='C'),
-                np.arange(intervals_discretized.shape[0]))
-        
-    def intersection_proportions(self, query_intervals): 
-        query_intervals = self.preprocess_for_ncls(query_intervals)
-        selection_intervals = self.preprocess_for_ncls(self.intervals)
-        ncls = NCLS(*selection_intervals)
-        query_ixs, selection_ixs = ncls.all_overlaps_both(*query_intervals)
-        if len(query_ixs)>0:
-            intersection_starts = np.maximum(query_intervals[0][query_ixs], selection_intervals[0][selection_ixs])
-            intersection_ends = np.minimum(query_intervals[1][query_ixs], selection_intervals[1][selection_ixs])
-            intersection_lengths = intersection_ends - intersection_starts
-            query_intersection_lengths = sum_by_index(intersection_lengths, query_ixs, len(query_intervals[0]))
-            query_lengths = query_intervals[1] - query_intervals[0] + 1e-10
-            return query_intersection_lengths / query_lengths
-        else:
-            return np.zeros(len(query_intervals[0]))
-
-
-'''
-Widget with header bar containing title and minimize/maximize buttons. 
-Mixin can be applied to objects that satisfy ALL the following:
-    - parent is a QSplitter widget
-
-'''
 
 class HeaderMixin():
 
@@ -181,8 +62,8 @@ class HeaderMixin():
         self.layout.setSpacing(0)
         self.layout.addWidget(self.header)
 
-        self.plus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','plus.png')))
-        self.minus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','minus.png')))
+        self.plus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../icons','plus.png')))
+        self.minus_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../icons','minus.png')))
         self.toggle_button.setIcon(self.plus_icon)
         self.toggle_button.setIconSize(QSize(12,12))
 
@@ -257,8 +138,8 @@ class CheckBox(QPushButton):
     def __init__(self, checkstate=False):
         super().__init__()
         self.checkstate = checkstate
-        self.unchecked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','checkbox_unchecked.png')))
-        self.checked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'icons','checkbox_checked.png')))
+        self.unchecked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../icons','checkbox_unchecked.png')))
+        self.checked_icon = QIcon(QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../icons','checkbox_checked.png')))
         self.update_icon()
         self.setIconSize(QSize(14,14))
         self.clicked.connect(self.toggle)
@@ -272,7 +153,4 @@ class CheckBox(QPushButton):
     def update_icon(self):
         if self.checkstate: self.setIcon(self.checked_icon)
         else: self.setIcon(self.unchecked_icon)
-
-
-
 

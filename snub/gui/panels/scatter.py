@@ -7,9 +7,8 @@ import time
 import os
 import cmapy
 from functools import partial
-from ncls import NCLS
 from snub.gui.panels import Panel
-from snub.gui.utils import HeaderMixin, AdjustColormapDialog
+from snub.gui.utils import HeaderMixin, AdjustColormapDialog, IntervalIndex
 
 
 
@@ -60,11 +59,10 @@ class ScrubbableViewBox(pg.ViewBox):
 class ScatterPanel(Panel, HeaderMixin):
     eps = 1e-10
 
-    def __init__(self, config, selected_intervals, 
-                 data_path=None, name='', xlim=None, ylim=None, 
-                 pointsize=10, linewidth=1, facecolor=(180,180,180), 
-                 edgecolor=(0,0,0), selected_edgecolor=(255,255,0),
-                 current_node_size=20, current_node_color=(255,0,0), colormap='viridis',
+    def __init__(self, config, selected_intervals, data_path=None, name='',
+                 pointsize=10, linewidth=1, facecolor=(180,180,180), xlim=None, ylim=None, 
+                 selected_edgecolor=(255,255,0), edgecolor=(0,0,0), current_node_size=20, 
+                 current_node_color=(255,0,0), colormap='viridis',
                  selection_intersection_threshold=0.5, feature_labels=[], **kwargs):
 
         super().__init__(config, **kwargs)
@@ -90,7 +88,8 @@ class ScatterPanel(Panel, HeaderMixin):
 
         self.data = np.load(os.path.join(config['project_directory'],data_path))
         self.data[:,2:4] = self.data[:,2:4] + np.array([-self.eps, self.eps])
-        self.ncls = NCLS(*(self.data[:,2:4]/self.min_step).astype(int).T, np.arange(self.data.shape[0]))
+        self.plot_order = np.arange(self.data.shape[0])
+        self.interval_index = IntervalIndex(min_step=self.min_step, intervals=self.data[:,2:4])
 
         self.viewBox = ScrubbableViewBox()
         self.plot = pg.PlotWidget(viewBox=self.viewBox)
@@ -102,10 +101,10 @@ class ScatterPanel(Panel, HeaderMixin):
         self.scatter.sigClicked.connect(self.point_clicked)
         self.scatter_selected.sigClicked.connect(self.point_clicked)
         self.viewBox.drag_event.connect(self.drag_event)
-        self.initUI()
+        self.initUI(name=name)
 
-    def initUI(self):
-        super().initUI()
+    def initUI(self, **kwargs):
+        super().initUI(**kwargs)
         self.layout.addWidget(self.plot)
         self.current_node_brush = pg.mkBrush(color=self.current_node_color)
         self.current_node_scatter.setData(size=self.current_node_size, brush=self.current_node_brush)
@@ -136,21 +135,23 @@ class ScatterPanel(Panel, HeaderMixin):
 
     def update_scatter_data(self):
         if self.current_feature_label in self.feature_labels:
-            x = self.data[:,2+self.feature_labels.index(self.current_feature_label)]
+            x = self.data[self.plot_order,2+self.feature_labels.index(self.current_feature_label)]
             x = np.clip((x - self.vmin) / (self.vmax - self.vmin), 0, 1)
             brush = pg.colormap.get(self.colormap,'matplotlib').map(x,'qcolor')
         else: brush = pg.mkBrush(color=self.facecolor)
         self.scatter.setData(
-            pos=self.data[:,:2], data=np.arange(self.data.shape[0]), brush=brush, 
+            pos=self.data[self.plot_order,:2], data=self.plot_order, brush=brush, 
             pen=pg.mkPen(color=self.edgecolor, width=self.linewidth), size=self.pointsize)
         self.scatter_selected.setData(
-            pos=self.data[:,:2], data=np.arange(self.data.shape[0]), brush=brush,
+            pos=self.data[self.plot_order,:2], data=self.plot_order, brush=brush,
             pen=pg.mkPen(color=self.selected_edgecolor, width=self.linewidth), size=self.pointsize)
         self.update_selected_intervals()
 
 
     def contextMenuEvent(self, event):
-        menu_options = [('Adjust colormap range', self.show_adjust_colormap_dialog)]
+        menu_options = [('Adjust colormap range', self.show_adjust_colormap_dialog),
+                        ('Sort by color value', self.sort_by_color_value),
+                        ('Restore original order', self.sort_original)]
         contextMenu = QMenu(self)
         for name,slot in menu_options:
             label = QLabel(name)
@@ -178,6 +179,17 @@ class ScatterPanel(Panel, HeaderMixin):
         self.vmin,self.vmax = vmin,vmax
         self.update_scatter_data()
 
+    def sort_original(self):
+        self.plot_order = np.arange(self.data.shape[0])
+        self.update_scatter_data()
+
+    def sort_by_color_value(self):
+        label = self.current_feature_label
+        if label in self.feature_labels:
+            x = self.data[:,2+self.feature_labels.index(label)]
+            self.plot_order = np.argsort(x)
+            self.update_scatter_data()
+
     def show_adjust_colormap_dialog(self):
         self.adjust_colormap_dialog.show()
 
@@ -190,8 +202,7 @@ class ScatterPanel(Panel, HeaderMixin):
         self.update_scatter_data()
 
     def update_current_time(self, t):
-        use_t = np.array([t / self.min_step]).astype(int)
-        current_nodes = self.ncls.all_containments_both(use_t,use_t+1,np.array([0]))[1]
+        current_nodes = self.interval_index.intervals_containing(np.array([t]))
         valid = np.all([self.data[current_nodes][:,2]<=t, self.data[current_nodes][:,3]>=t],axis=0)
         current_nodes_pos = self.data[current_nodes,:2][valid]
         self.current_node_scatter.setData(pos=current_nodes_pos)

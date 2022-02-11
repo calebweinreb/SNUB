@@ -5,9 +5,6 @@ import numpy as np
 
 from snub.gui.stacks import Stack
 from snub.gui.tracks import *
-from snub.gui.utils import position_to_time, time_to_position
-
-
 
 class TrackStack(Stack):
     new_current_time = pyqtSignal(float)

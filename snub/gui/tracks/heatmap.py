@@ -10,7 +10,14 @@ import time
 from numba import njit, prange
 
 from snub.gui.tracks import Track, TracePlot, TrackGroup
-from snub.gui.utils import cvImage_to_Qimage, AdjustColormapDialog
+from snub.gui.utils import AdjustColormapDialog
+
+
+def cvImage_to_Qimage(cvImage):
+    height, width, channel = cvImage.shape
+    bytesPerLine = 3 * width
+    img_data = np.require(cvImage, np.uint8, 'C')
+    return QImage(img_data, width, height, bytesPerLine, QImage.Format_RGB888)
 
 
 @njit

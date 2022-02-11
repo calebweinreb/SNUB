@@ -4,7 +4,7 @@ from PyQt5.QtGui import *
 import sys, os, cv2, json
 import numpy as np
 from functools import partial
-from snub.gui.utils import SelectionIntervals, CheckBox
+from snub.gui.utils import IntervalIndex, CheckBox
 from snub.gui.stacks import PanelStack, TrackStack
 
 
@@ -70,7 +70,7 @@ class ProjectTab(QWidget):
         self.center_playhead = config['center_playhead']
 
         # keep track of current selection
-        self.selected_intervals = SelectionIntervals(min_step=config['min_step'])
+        self.selected_intervals = IntervalIndex(min_step=config['min_step'])
         
         # create major gui elements
         self.panelStack = PanelStack(config, self.selected_intervals)

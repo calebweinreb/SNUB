@@ -21,7 +21,7 @@ setuptools.setup(
         'console_scripts':[
             'snub = snub.gui.main:run']
     },
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     install_requires=['PyQt5',
                       'numpy',
                       'scikit-learn',
@@ -29,6 +29,7 @@ setuptools.setup(
                       'tqdm',
                       'cmapy',
                       'ncls',
+                      'interlap',
                       'numba',
                       'vispy',
                       'imageio',

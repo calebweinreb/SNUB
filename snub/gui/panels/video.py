@@ -6,13 +6,27 @@ import time
 import os
 
 from vidio import VideoReader
-from snub.gui.utils import numpy_to_qpixmap, HeaderMixin
+from snub.gui.utils import HeaderMixin
 from snub.gui.panels import Panel
 
 '''
 Video code was borrowed and modified from 
 https://github.com/jbohnslav/pose_annotator/blob/master/pose_annotator/gui/custom_widgets.py
 '''
+
+
+def numpy_to_qpixmap(image: np.ndarray) -> QPixmap:
+    if isinstance(image.flat[0], np.floating):
+        image = float_to_uint8(image)
+    H, W, C = int(image.shape[0]), int(image.shape[1]), int(image.shape[2])
+    if C == 4:
+        format = QImage.Format_RGBA8888
+    elif C == 3:
+        format = QImage.Format_RGB888
+    else:
+        raise ValueError('Aberrant number of channels: {}'.format(C))
+    qpixmap = QPixmap(QImage(image, W,H, image.strides[0], format))
+    return qpixmap
 
 
 

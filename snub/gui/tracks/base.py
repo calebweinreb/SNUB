@@ -4,7 +4,16 @@ from PyQt5.QtGui import *
 import numpy as np
 import os
 from functools import partial
-from snub.gui.utils import HeaderMixin, time_to_position
+from snub.gui.utils import HeaderMixin
+
+
+
+def time_to_position(current_range, width, t):
+    pos_rel = (t - current_range[0]) / (current_range[1]-current_range[0])
+    return pos_rel * width
+
+def position_to_time(current_range, width, p):
+    return p/width * (current_range[1]-current_range[0]) + current_range[0]
 
 
 
