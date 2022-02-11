@@ -28,7 +28,6 @@ setuptools.setup(
                       'pynndescent',
                       'tqdm',
                       'cmapy',
-                      'ncls',
                       'interlap',
                       'numba',
                       'vispy',
@@ -38,8 +37,6 @@ setuptools.setup(
                       'rastermap',
                       'ipykernel',
                       'pyqtgraph',
-                      'PyOpenGL',
-                      'PyOpenGL_accelerate',
                       'opencv-python-headless',
                       'vidio>=0.0.3'], 
     url='https://github.com/jbohnslav/pose_annotator'
