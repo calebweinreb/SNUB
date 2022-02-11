@@ -21,6 +21,14 @@ Install SNUB using ``pip``::
 
    pip install snub
 
+To speed up selections, we recommend installing ncls::
+
+   pip install ncls
+
+To use the 3D mesh viewer, install opengl::
+
+   pip install PyOpenGL PyOpenGL_accelerate
+
 To test the installation, try launching ``snub`` from the command line (make sure the ``snub`` conda environment is activated)::
 
    snub
