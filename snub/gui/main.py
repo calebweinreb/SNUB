@@ -322,7 +322,7 @@ class MainWindow(QMainWindow):
 
 
         # try to open projects that are passed as command line arguments
-        self.open(args)
+        self.open(project_directories=args)
 
 
     def deselect_all(self):
@@ -344,7 +344,7 @@ class MainWindow(QMainWindow):
     def close_tab(self, i):
         self.tabs.removeTab(i)
 
-    def open(self, project_directories=None):
+    def open(self, *args, project_directories=None):
         if project_directories is None:
             project_directories = self.getExistingDirectories()
         error_directories = []
@@ -386,7 +386,7 @@ class MainWindow(QMainWindow):
         dlg.setOption(dlg.DontUseNativeDialog, True)
         dlg.setOption(dlg.HideNameFilterDetails, True)
         dlg.setFileMode(dlg.Directory)
-        dlg.setOption(dlg.ShowDirsOnly, False)
+        dlg.setOption(dlg.ShowDirsOnly, True)
         dlg.findChildren(QListView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
         dlg.findChildren(QTreeView)[0].setSelectionMode(QAbstractItemView.ExtendedSelection)
         if dlg.exec_() == QDialog.Accepted:
