@@ -34,7 +34,7 @@ setuptools.setup(
                       'rastermap',
                       'ipykernel',
                       'pyqtgraph',
-                      'opencv-python==4.1.2.30',
+                      'opencv-python-headless',
                       'vidio>=0.0.3'], 
     url='https://github.com/calebweinreb/SNUB'
 )
