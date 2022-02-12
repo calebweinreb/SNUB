@@ -1,7 +1,6 @@
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-import pyqtgraph.opengl as gl
 import h5py, numpy as np, os
 from snub.gui.panels import Panel
 from snub.gui.utils import HeaderMixin
@@ -9,6 +8,8 @@ from snub.gui.utils import HeaderMixin
 
 class MeshPanel(Panel, HeaderMixin):
     def __init__(self, config, data_path=None, faces_path=None, timestamps_path=None, **kwargs):
+        import pyqtgraph.opengl as gl
+
         super().__init__(config, **kwargs)
 
         h5_path = os.path.join(config['project_directory'], data_path)
@@ -19,7 +20,8 @@ class MeshPanel(Panel, HeaderMixin):
         self.verts_dset = h5py.File(h5_path, 'r')['vertices']
         self.faces = np.load(faces_path).squeeze()
         self.face_colors = np.zeros((self.faces.shape[0], 4))
-
+        self.w = gl.GLViewWidget()
+        self.floor_grid = gl.GLGridItem()
         self.mesh = gl.GLMeshItem(
             vertexes=self.verts_dset[0],
             faces=self.faces,
@@ -32,13 +34,10 @@ class MeshPanel(Panel, HeaderMixin):
 
     def initUI(self, **kwargs):
         super().initUI(**kwargs)
-        self.w = gl.GLViewWidget()
         self.w.setCameraPosition(distance=200, elevation=20)
-
-        floor_grid = gl.GLGridItem()
-        floor_grid.setSize(2000, 2000)
-        floor_grid.setSpacing(20, 20)
-        self.w.addItem(floor_grid)
+        self.floor_grid.setSize(2000, 2000)
+        self.floor_grid.setSpacing(20, 20)
+        self.w.addItem(self.floor_grid)
         self.w.addItem(self.mesh)
         self.layout.addWidget(self.w)
 
