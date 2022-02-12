@@ -22,9 +22,13 @@ To speed up selections, we recommend installing ``ncls``::
 
    pip install ncls
 
-To use the 3D mesh viewer, install ``opengl``::
+To use the 3D mesh viewer::
 
    pip install PyOpenGL PyOpenGL_accelerate
+
+To use SNUB on linux::
+
+   sudo apt-get install qt5-default
 
 Test SNUB
 ---------
