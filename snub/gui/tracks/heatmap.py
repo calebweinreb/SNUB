@@ -3,7 +3,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from functools import partial
 import os
-import cv2
 import numpy as np
 import cmapy
 import time
@@ -225,7 +224,7 @@ class Heatmap(Track):
     def get_image_data(self):
         data_remapped = map_heatmap_by_intervals(self.data, self.intervals, self.min_step)
         data_scaled = np.clip((data_remapped[self.row_order]-self.vmin)/(self.vmax-self.vmin),0,1)*255
-        image_data = cv2.applyColorMap(data_scaled.astype(np.uint8), cmapy.cmap(self.colormap))[:,:,::-1]
+        image_data = cmapy.cmap(self.colormap).squeeze()[:,::-1][data_scaled.astype(np.uint8)]
         return image_data
 
     def update_colormap_range(self, vmin, vmax):
@@ -288,6 +287,7 @@ class HeatmapTraceGroup(TrackGroup):
                  heatmap_height_ratio=2, height_ratio=1, **kwargs):
 
         heatmap = Heatmap(config, selected_intervals, height_ratio=heatmap_height_ratio, **kwargs)
+
         x = heatmap.intervals.mean(1)
         trace_data = {l:np.vstack((x,d)).T for l,d in zip(heatmap.labels, heatmap.data)}
         trace = TracePlot(config, height_ratio=trace_height_ratio, data=trace_data, **kwargs)

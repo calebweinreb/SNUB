@@ -3,7 +3,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from functools import partial
 import os
-import cv2
 import numpy as np
 import cmapy
 import time

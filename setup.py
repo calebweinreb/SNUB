@@ -37,7 +37,6 @@ setuptools.setup(
                       'rastermap',
                       'ipykernel',
                       'pyqtgraph',
-                      'opencv-python-headless',
                       'vidio>=0.0.3'], 
     url='https://github.com/jbohnslav/pose_annotator'
 )

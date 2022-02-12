@@ -1,7 +1,7 @@
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-import sys, os, cv2, json
+import sys, os, json
 import numpy as np
 from functools import partial
 from snub.gui.utils import IntervalIndex, CheckBox
