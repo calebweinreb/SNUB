@@ -5,12 +5,10 @@ with open("README.md", 'r') as f:
 
 setuptools.setup(
     name='snub',
-    version='0.0.0',
+    version='0.0.1',
     author='Caleb Weinreb',
     author_email='calebsw@gmail.com',
     description='Systems neuro browser',
-    long_description=long_description,
-    long_description_content_type='text/markdown',
     include_package_data=True,
     packages=setuptools.find_packages(),
     classifiers=[
@@ -38,5 +36,5 @@ setuptools.setup(
                       'ipykernel',
                       'pyqtgraph',
                       'vidio>=0.0.3'], 
-    url='https://github.com/jbohnslav/pose_annotator'
+    url='https://github.com/calebweinreb/SNUB'
 )

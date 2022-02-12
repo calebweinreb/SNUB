@@ -36,7 +36,7 @@ To test the installation, try launching ``snub`` from the command line (make sur
 
    snub
 
-A browser window should launch. Download the `example project <https://www.dropbox.com/sh/tz6kokymkpjicfb/AABBpFzqwFEdFfuXPzhv3Q_6a?dl=0>`_, and try opening it by going to ``File > Open Project``, navigating to the project directory, and hitting ``Choose`` with the directory selected. Projects can also be opened by including the path as a command line argument::
+A browser window should launch. Download the `example project <https://www.dropbox.com/sh/ujr3ttdc3gsxtqt/AAAKLL9iaF54cOwPKRPMTENIa?dl=0>`_, and try opening it by going to ``File > Open Project``, navigating to the project directory, and hitting ``Choose`` with the directory selected. Projects can also be opened by including the path as a command line argument::
 
    snub /path/to/project/directory
 
