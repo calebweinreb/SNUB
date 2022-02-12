@@ -15,6 +15,9 @@ class IntervalIndexBase():
     def __init__(self, intervals=np.empty((0,2)), **kwargs):
         self.intervals = intervals
 
+    def clear(self):
+        self.intervals = np.empty((0,2))
+
     def partition_intervals(self, start, end):
         ends_before = self.intervals[:,1] < start
         ends_after = self.intervals[:,1] >= start

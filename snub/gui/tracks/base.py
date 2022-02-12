@@ -200,9 +200,9 @@ class TrackOverlay(Track):
         qp.setPen(Qt.NoPen)
         qp.setBrush(QBrush(QColor(255,255,255,100), Qt.SolidPattern))
         for s,e in self.selected_intervals.intervals:
-            s_pos = self._time_to_position(s)
-            e_pos = self._time_to_position(e)
-            if e_pos > 0 and s_pos < self.width(): 
+            s_pos = int(self._time_to_position(s))
+            e_pos = int(self._time_to_position(e))
+            if e_pos > s_pos and e_pos > 0 and s_pos < self.width(): 
                 qp.drawRect(s_pos, 0, e_pos-s_pos, self.height())
         qp.end()
 

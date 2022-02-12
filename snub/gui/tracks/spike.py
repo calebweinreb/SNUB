@@ -76,7 +76,7 @@ class SpikePlot(Heatmap):
     def spike_colors(self):
         image_data = self.get_image_data()
         rows = np.argsort(self.row_order)[self.spike_labels]
-        cols = np.around((self.spike_times-self.start_time)/self.binsize).astype(int)
+        cols = np.around((self.spike_times-self.start_time)/self.min_step).astype(int)
         colors = image_data[rows,np.clip(cols,0,image_data.shape[1]-1)].astype(np.float32)/255
         return colors
 
@@ -122,16 +122,18 @@ class HeadedSpikePlot(TrackGroup):
         spikeplot = SpikePlot(config, selected_intervals, **kwargs)
         super().__init__(config, tracks={'spikeplot':spikeplot}, track_order=['spikeplot'], **kwargs)
 
+
 class SpikePlotTraceGroup(TrackGroup):
     def __init__(self, config, selected_intervals, trace_height_ratio=1, 
-                 heatmap_height_ratio=2, height_ratio=1, heatmap_path=None, spikes_path=None, **kwargs):
+                 heatmap_height_ratio=2, height_ratio=1, **kwargs):
         self.height_ratio = trace_height_ratio + heatmap_height_ratio
 
-        trace = TracePlot(config, height_ratio=trace_height_ratio, data_path=heatmap_path, **kwargs)
-        spikeplot = SpikePlot(config, selected_intervals, height_ratio=heatmap_height_ratio, 
-                              heatmap_path=heatmap_path, spikes_path=spikes_path, **kwargs)
+        spikeplot = SpikePlot(config, selected_intervals, height_ratio=heatmap_height_ratio, **kwargs)
 
-        height_ratio = trace_height_ratio+heatmap_height_ratio
+        x = spikeplot.intervals.mean(1)
+        trace_data = {l:np.vstack((x,d)).T for l,d in zip(spikeplot.labels, spikeplot.data)}
+        trace = TracePlot(config, height_ratio=trace_height_ratio, data=trace_data, **kwargs)
+
         super().__init__(config, tracks={'trace':trace, 'spikeplot':spikeplot}, 
                     track_order=['trace','spikeplot'], height_ratio=height_ratio, **kwargs)
         spikeplot.display_trace_signal.connect(trace.show_trace)

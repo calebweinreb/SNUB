@@ -52,13 +52,8 @@ class HeatmapImage(Track):
         for i in range(self.downsample_powers):
             cols = image_data.shape[1]//self.downsample_ratio
             if cols>0: image_data = image_data[:,:cols*self.downsample_ratio].reshape(image_data.shape[0],cols,-1,3).mean(2)
-            self.binned_images.append(image_data.astype(np.uint8))
+            self.binned_images.append(np.uint8(image_data))
 
-    def bin_image(self, image, width):
-        image = image.astype(float)
-        cols = int(np.ceil(image.shape[1]/width))
-        image_padded = np.pad(image, ((0,0),(0,int(width*cols)-image.shape[1]),(0,0)))
-        return np.uint8(image_padded.reshape(image.shape[0],cols,-1,3).mean(2))
 
     def get_current_pixmap(self):
         ### NOTE: CAN BE ABSTRACTED: SEE SIMILAR TIMELINE METHOD
@@ -68,7 +63,6 @@ class HeatmapImage(Track):
         use_image_data = use_image_data[self.vertical_range[0]:self.vertical_range[1]]
         use_range = [int(np.floor((self.current_range[0]-self.start_time)/self.binsize/self.downsample_options[downsample_ix])),
                      int(np.ceil((self.current_range[1]-self.start_time)/self.binsize/self.downsample_options[downsample_ix]))]
-        
         if use_range[0] > use_image_data.shape[1] or use_range[1] < 0: 
             use_image_data = np.zeros((50,50,3))
         elif use_range[0] >= 0 and use_range[1] <= use_image_data.shape[1]:
@@ -255,7 +249,7 @@ class Heatmap(Track):
     def zoom_in_vertical(self):
         center = np.mean(self.vertical_range)
         width = (self.vertical_range[1]-self.vertical_range[0])
-        new_width = max(width * .5,10)
+        new_width = max(width * .5,1)
         new_vrange = [center-new_width/2,center+new_width/2]
         new_vrange = np.around(np.clip(new_vrange,0,self.data.shape[0])).astype(int)
         self.vertical_range = new_vrange

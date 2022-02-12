@@ -43,10 +43,10 @@ def create_project(
     layout_mode='columns',
     tracks_size_ratio=2,
     panels_size_ratio=1,
-    min_step=.033,
+    min_step=1/30,
     animation_fps=30,
-    zoom_gain=0.003,
-    min_range=0.01,
+    zoom_gain=0.001,
+    min_range=.25,
     init_current_time=None,
     initial_playspeed=1,
     center_playhead=False,
@@ -175,7 +175,7 @@ def create_project(
     # create the project directory and config file
     if not os.path.exists(project_directory): 
         os.makedirs(project_directory)
-    print('Created project "{}" with config:'.format(project_directory))
+    print('Created project "{}"\n'.format(project_directory))
     save_config(project_directory, config)
     return config
     
@@ -462,7 +462,7 @@ def add_video(
         'order': order,
     }
     config['video'].append(props)
-    print('Added video plot "{}" to {}'.format(name,project_directory))
+    print('Added video plot "{}"\n'.format(name))
     save_config(project_directory, config)
     return props
    
@@ -520,7 +520,7 @@ def add_traceplot(
     
     # check that project exists and a trace plot with given name does not already exist
     config = load_config(project_directory)
-    _confirm_no_existing_dataview(config, 'trace', name)
+    _confirm_no_existing_dataview(config, 'traceplot', name)
     
     # choose random colors for traces that werent assigned a color
     unassigned_traces = [k for k in traces.keys() if not k in trace_colors]
@@ -545,7 +545,7 @@ def add_traceplot(
     }
 
     config['traceplot'].append(props)
-    print('Added trace plot "{}" to {}'.format(name,project_directory))
+    print('Added trace plot "{}\n" \n'.format(name,project_directory))
     save_config(project_directory, config)
     return props
     
@@ -718,7 +718,7 @@ def add_scatter(
     if ylim is not None: props['ylim'] = ylim
     
     config['scatter'].append(props)
-    print('Added scatter plot "{}" to {}'.format(name,project_directory))
+    print('Added scatter plot "{}" \n'.format(name))
     save_config(project_directory, config)
     return props
     
@@ -893,7 +893,7 @@ def add_heatmap(
     if sort_method is None:
         row_order = np.arange(data.shape[0])
     if isinstance(sort_method, str):
-        from snub.manifold import sort
+        from snub.io.manifold import sort
         row_order = sort(data, method=sort_method)
     else:
         try: data[sort_method]
@@ -938,7 +938,7 @@ def add_heatmap(
         'order': order,
     }
     config['heatmap'].append(props)
-    print('Added heatmap "{}" to {}'.format(name,project_directory))
+    print('Added heatmap "{}"\n'.format(name))
     save_config(project_directory, config)
     return props
     
@@ -1016,6 +1016,7 @@ def add_spikeplot(
     _confirm_no_existing_dataview(config, 'spikeplot', name)
     
     # save spike times and spike labels
+    spike_labels = spike_labels.astype(int)
     spike_data = np.vstack((spike_times, spike_labels)).T
     spikes_path = name+'.spikeplot_spikes.npy'
     spikes_path_abs = os.path.join(project_directory,spikes_path)
@@ -1042,7 +1043,7 @@ def add_spikeplot(
     if labels is None: 
         labels = [str(i) for i in range(heatmap_data.shape[0])]
         print('Creating labels from row ordering')
-    elif len(labels) != data.shape[0]:
+    elif len(labels) != heatmap_data.shape[0]:
         raise AssertionError(
             'The length of `labels` ({}) does not match the number of arrays in `spike_times` ({})'.format(len(labels), heatmap_data.shape[0]))
     elif len(set(labels)) < len(labels):
@@ -1057,11 +1058,12 @@ def add_spikeplot(
     # save row order
     if sort_method is None:
         row_order = np.arange(heatmap_data.shape[0])
-    if isinstance(sort_method, str):
-        from snub.manifold import sort
+    elif isinstance(sort_method, str):
+        from snub.io.manifold import sort
         row_order = sort(heatmap_data, method=sort_method)
     else:
-        try: heatmap_data[sort_method]
+        row_order = sort_method.astype(int)
+        try: heatmap_data[row_order]
         except: raise AssertionError(
             '`sort_order` must be None, a string, or a valid index that can be used in `data[sort_method]`')
     row_order_path = name+'.spikeplot_row_order.npy'
@@ -1105,7 +1107,7 @@ def add_spikeplot(
         'order': order,
     }
     config['spikeplot'].append(props)
-    print('Added spike plot "{}" to {}'.format(name,project_directory))
+    print('Added spike plot "{}"\n'.format(name))
     save_config(project_directory, config)
     return props
     

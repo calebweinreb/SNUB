@@ -230,7 +230,8 @@ class ProjectTab(QWidget):
         self.speed_label.setText('{}X'.format(self.play_speed))
 
     def deselect_all(self):
-        self.update_selected_intervals([self.bounds], [False])
+        self.selected_intervals.clear()
+        self.update_selected_intervals([], [])
 
     def update_selected_intervals(self, intervals, is_selected):
         for (start,end),sel in zip(intervals, is_selected):

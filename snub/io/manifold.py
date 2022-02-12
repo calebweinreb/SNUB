@@ -27,7 +27,7 @@ def sort(
     if method=='rastermap':
         print('Computing row order with rastermap')
         from rastermap import mapping
-        model = mapping.Rastermap(n_components=1).fit(heatmap_data)
+        model = mapping.Rastermap(n_components=1).fit(data)
         return np.argsort(model.embedding[:,0])
 
     
@@ -75,6 +75,7 @@ def firing_rates(
     spike_times = spike_times - start_time
     
     # create heatmap of spike counts for each window_step-sized bin
+    spike_labels = spike_labels.astype(int)
     heatmap = np.zeros((spike_labels.max()+1, spike_times.max()+1))
     np.add.at(heatmap, (spike_labels, spike_times), 1/window_step)
     
@@ -105,7 +106,7 @@ def bin_data(
     bin_intervals: ndarray
         (N,2) array with the start and end index of each bin
     """
-    pad_amount = data.shape[1]%binsize
+    pad_amount = (-data.shape[1])%binsize
     num_bins = int((data.shape[1]+pad_amount)/binsize)
 
     data_padded = np.pad(data,((0,0),(0,pad_amount)))
@@ -119,7 +120,10 @@ def bin_data(
 
     return data_binned, bin_intervals
 
-
+def zscore(data, axis=0, eps=1e-10):
+    mean = np.mean(data, axis=axis, keepdims=True)
+    std = np.std(data, axis=axis, keepdims=True) + eps
+    return (data-mean)/std
 
 def umap_embedding(
     data, 
@@ -166,7 +170,6 @@ def umap_embedding(
     """
     from sklearn.decomposition import PCA
     from umap import UMAP
-    from scipy.stats import zscore
 
     if standardize: data = zscore(data, axis=1)
     PCs = PCA(n_components=n_pcs).fit_transform(data.T)

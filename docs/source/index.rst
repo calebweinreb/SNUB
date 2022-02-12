@@ -1,7 +1,9 @@
-Systems Neuro Browser (SNUB)
+SNUB (Systems Neuro Browser)
 ============================
 
-.. image:: ../media/use_case3.gif
+`Github Repository <https://github.com/calebweinreb/SNUB>`_
+
+.. image:: ../media/use_case1.gif
    :align: center
 
 |
@@ -28,9 +30,9 @@ SNUB Documentation
 .. toctree::
    :maxdepth: 2
 
-   tutorials
-
    install
+
+   tutorials
 
    snub.io<api>
 
