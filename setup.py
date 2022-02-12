@@ -5,7 +5,7 @@ with open("README.md", 'r') as f:
 
 setuptools.setup(
     name='snub',
-    version='0.0.1',
+    version='0.0.3',
     author='Caleb Weinreb',
     author_email='calebsw@gmail.com',
     description='Systems neuro browser',
@@ -23,7 +23,6 @@ setuptools.setup(
     install_requires=['PyQt5',
                       'numpy',
                       'scikit-learn',
-                      'pynndescent',
                       'tqdm',
                       'cmapy',
                       'interlap',

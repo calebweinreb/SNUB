@@ -9,11 +9,12 @@ SNUB is a visual interface for systems neuroscience. Using a set of linked data-
 
 ## Installation
 
-Create and activate a new conda environment with python≥3.8 and install via pip
+Create and activate a new conda environment with python≥3.8, clone this repo, and install via pip
 ```
 conda create -n snub python=3.8
 conda activate snub
-pip install snub
+git clone https://github.com/calebweinreb/SNUB.git
+pip install -e SNUB
 ```
 To speed up selections, `pip install ncls`. To use the 3D mesh viewer, install `pip install PyOpenGL PyOpenGL_accelerate`. The docs include more detailed [installation instructions](https://snub.readthedocs.io/en/latest/install.html).
 

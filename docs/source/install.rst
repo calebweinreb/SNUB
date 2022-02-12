@@ -4,22 +4,19 @@ Installation
 Install Conda
 ----------------
 
-Install `Anaconda <https://docs.anaconda.com/anaconda/install/index.html>`_ or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_. Create an environment called ``snub`` with python≥3.8::
+Install `Anaconda <https://docs.anaconda.com/anaconda/install/index.html>`_ or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_. Create and activate an environment called ``snub`` with python≥3.8::
 
    conda create -n snub python=3.8
-
-
-Activate the environment::
-
    conda activate snub
 
 
 Install SNUB
 ------------
 
-Install SNUB using ``pip``::
+Clone or download the `SNUB github repo <https://github.com/calebweinreb/SNUB>`_ and pip install::
 
-   pip install snub
+   git clone https://github.com/calebweinreb/SNUB.git
+   pip install -e SNUB
 
 To speed up selections, we recommend installing ``ncls``::
 
