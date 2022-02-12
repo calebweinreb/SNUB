@@ -1,7 +1,6 @@
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-from PyQt5 import QtOpenGL
 import pyqtgraph.opengl as gl
 import h5py, numpy as np, os
 from snub.gui.panels import Panel
