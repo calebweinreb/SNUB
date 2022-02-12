@@ -1,6 +1,6 @@
 # SNUB (Systems Neuro Browser)
 
-*[Read the docs!](https://snub.readthedocs.io/en/latest/)*
+##[Read the documentation!](https://snub.readthedocs.io/en/latest/)*
 
 SNUB is a visual interface for systems neuroscience. Using a set of linked data-views, users can explore relationships between raw video, 3D animal pose, behavior annotations, neural activity, or any other relevant time-series data.
 
