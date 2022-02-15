@@ -143,14 +143,14 @@ def create_project(
         )
     elif duration is not None and end_time is not None and duration != (end_time-start_time):
         raise AssertionError(
-            '`duration={}` is inconsistent with `start_time-end_time={}`'.format(duration, end_time-start_time)
+            '`duration={}` is inconsistent with `end_time-start_time={}`'.format(duration, end_time-start_time)
         )
         
     # create the config file
     if end_time is None: end_time = start_time + duration
     if init_current_time is None: init_current_time = start_time
     if (end_time-start_time)/min_step > 200000: 
-        raise AssertionError('min_step={} is too small for the total duration {}. The maximum allowed ratio of `duration/min_step` is 200,000'.format(min_step, start_time-end_time))
+        raise AssertionError('min_step={} is too small for the total duration {}. The maximum allowed ratio of `duration/min_step` is 200,000'.format(min_step, end_time-start_time))
 
     config = {
         'bounds': [start_time,end_time],
@@ -896,7 +896,9 @@ def add_heatmap(
         from snub.io import sort
         row_order = sort(data, method=sort_method)
     else:
-        try: data[sort_method]
+        try: 
+            data[sort_method]
+            row_order = sort_method
         except: raise AssertionError(
             '`sort_order` must be None, a string, or a valid index that can be used in `data[sort_method]`')
     row_order_path = name+'.heatmap_row_order.npy'

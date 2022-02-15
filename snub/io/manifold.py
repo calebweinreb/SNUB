@@ -113,10 +113,13 @@ def sort(
     method='rastermap', 
     options={}
 ):
-    """Linearly sort neurons in order to group those with similar activity
+    """Compute neuron ordering that groups neurons with similar activity
 
     Parameters
     ----------
+    data: ndarray
+        Data matrix where rows are neurons and columns are time points
+
     method: {'rastermap'}
         Method to use for sorting (currently only rastermap is implemented)
 
@@ -126,6 +129,12 @@ def sort(
         'rastermap'
             ``options`` will be passed as keyword arguments when initializing
             `rastermap.mapping.Rastermap <https://github.com/MouseLand/rastermap/blob/40867ce9a8b2850d76483890740c0dc10d6cb413/rastermap/mapping.py#L531>`_
+
+    Returns
+    -------
+    ordering: ndarray
+        Ordering index that can be used for sorting (see `numpy.argsort`)
+
     """
     valid_sort_methods = ['rastermap']
     if not method in valid_sort_methods:
