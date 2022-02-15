@@ -117,7 +117,6 @@ def bin_data(
     bin_ends = np.arange(1,num_bins+1)*binsize
     bin_ends[-1] = data.shape[1]
     bin_intervals = np.vstack((bin_starts,bin_ends)).T
-
     return data_binned, bin_intervals
 
 def zscore(data, axis=0, eps=1e-10):

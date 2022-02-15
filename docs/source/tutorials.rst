@@ -41,10 +41,10 @@ Create a SNUB project
 
 .. code-block:: python
 
-    import snub.io.project
+    import snub.io
 
     project_directory = 'ca2_imaging_project'
-    snub.io.project.create_project(
+    snub.io.create_project(
         project_directory, 
         start_time=video_timestamps.min(),
         end_time=video_timestamps.max())
@@ -55,12 +55,12 @@ Add IR video
 ~~~~~~~~~~~~
 
 This experiment was originally filmed in 16bit monochrome. The ``.mp4``
-file below was generated using :py:meth:`snub.io.video.transform_azure_ir_stream`
+file below was generated using :py:meth:`snub.io.transform_azure_ir_stream`
 
 .. code-block:: python
 
     video_path = 'ir_video.mp4'
-    snub.io.project.add_video(
+    snub.io.add_video(
         project_directory, 
         video_path, 
         timestamps=video_timestamps,
@@ -72,7 +72,7 @@ Add calcium traces
 
 .. code-block:: python
 
-    snub.io.project.add_heatmap(
+    snub.io.add_heatmap(
         project_directory, 
         'my_ca2_data',
         calcium_data,
@@ -87,7 +87,7 @@ Add behavior annotations
 
 .. code-block:: python
 
-    snub.io.project.add_heatmap(
+    snub.io.add_heatmap(
         project_directory, 
         'behavior annotations',
         behavior_annotations,
@@ -102,25 +102,23 @@ Add a UMAP plot of neural activity states
 
 .. code-block:: python
 
-    import snub.io.manifold
-
     # bin the calcium data into 400ms bins prior to UMAP
-    binned_calcium_data,_ = snub.io.manifold.bin_data(calcium_data, 6)
+    binned_calcium_data,_ = snub.io.bin_data(calcium_data, 6)
 
     # bin the behavior annotations so we can plot them over the UMAP
     # also truncate so that they are aligned with the neural data start time
     behavior_truncated = behavior_annotations[:,200:-200]
-    binned_behavior_annotations,_ = snub.io.manifold.bin_data(behavior_truncated, 12)
+    binned_behavior_annotations,_ = snub.io.bin_data(behavior_truncated, 12)
 
     # check that truncation was correct - array sizes must have same # of columns
     print(binned_calcium_data.shape, binned_behavior_annotations.shape)
 
-    coordinates = snub.io.manifold.umap_embedding(
+    coordinates = snub.io.umap_embedding(
         binned_calcium_data,
         n_pcs=10,
         n_neighbors=100)
 
-    snub.io.project.add_scatter(
+    snub.io.add_scatter(
         project_directory,
         'umap embedding',
         coordinates,
@@ -172,10 +170,10 @@ Create a SNUB project
 
 .. code-block:: python
 
-    import snub.io.project
+    import snub.io
 
     project_directory = 'ephys_project'
-    snub.io.project.create_project(
+    snub.io.create_project(
         project_directory, 
         start_time=spike_times.min(),
         end_time=spike_times.max())
@@ -185,12 +183,12 @@ Add IR video
 ~~~~~~~~~~~~
 
 This experiment was originally filmed in 16bit monochrome. The ``.mp4``
-file below was generated using :py:meth:`snub.io.video.transform_azure_ir_stream`
+file below was generated using :py:meth:`snub.io.transform_azure_ir_stream`
 
 .. code-block:: python
 
     video_path = 'behavior_video.mp4'
-    snub.io.project.add_video(
+    snub.io.add_video(
         project_directory, 
         video_path, 
         timestamps=video_timestamps,
@@ -211,7 +209,7 @@ Add spike-sorted ephys data
     renaming_dict = {old:new for new,old in enumerate(good_units)}
     spike_labels = np.array([renaming_dict[i] for i in spike_labels])
 
-    snub.io.project.add_spikeplot(
+    snub.io.add_spikeplot(
         project_directory, 
         'my_ephys_data',
         spike_times,
@@ -226,22 +224,20 @@ Add a UMAP plot of neural activity states
 
 .. code-block:: python
 
-    import snub.io.manifold
-
     # Generate UMAP coordinates using ephys firing rates
     # calculated from non-overlapping 100ms windows
 
-    firing_rates, start_time = snub.io.manifold.firing_rates(
+    firing_rates, start_time = snub.io.firing_rates(
         spike_times,
         spike_labels,
         window_size=0.1,
         window_step=0.1)
 
-    coordinates = snub.io.manifold.umap_embedding(
+    coordinates = snub.io.umap_embedding(
         firing_rates,
         min_dist=.01)
 
-    snub.io.project.add_scatter(
+    snub.io.add_scatter(
         project_directory,
         'umap embedding',
         coordinates,
@@ -256,7 +252,7 @@ Add a plot of mouse velocity
 
     traces = {'velocity': np.vstack((velocity_timestamps,mouse_velocity)).T}
 
-    snub.io.project.add_traceplot(
+    snub.io.add_traceplot(
         project_directory,
         'velocity',
         traces,
@@ -334,7 +330,7 @@ Color the scatter plot
 Another way to probe the scatter plot is through node coloring.
 
 * Use right-click -> "Color by ..." to view variables of interest in the scatter plot.
-* Include variables using ``features`` and ``feature_labels`` in :py:func:`snub.io.project.add_scatter`.
+* Include variables using ``features`` and ``feature_labels`` in :py:func:`snub.io.add_scatter`.
 * Bring nodes with high values to the top using right-click -> "Sort by color value".
 
 .. image:: ../media/use_case4.gif

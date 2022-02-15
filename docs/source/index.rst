@@ -18,9 +18,9 @@ Loading data is simple with the ``snub.io`` module. For example the following co
 
    project_directory = 'path/to/new/project'
 
-   snub.io.project.create_project(project_directory, duration=1800)
-   snub.io.project.add_video(project_directory, 'path/to/my_video.avi', name='IR_camera')
-   snub.io.project.add_splikeplot(project_directory, 'my_ephys_data', spike_times, spike_labels) 
+   snub.io.create_project(project_directory, duration=1800)
+   snub.io.add_video(project_directory, 'path/to/my_video.avi', name='IR_camera')
+   snub.io.add_splikeplot(project_directory, 'my_ephys_data', spike_times, spike_labels) 
 
 
 SNUB Documentation

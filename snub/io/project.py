@@ -61,7 +61,7 @@ def create_project(
     overwrite : bool, default=False
         If a config.json file already exists in the project directory,
         overwrite=True will cause the file to be overwritten. To edit
-        but not overwrite an existing config file, use :py:func:`snub.io.project.edit_config`.
+        but not overwrite an existing config file, use :py:func:`snub.io.edit_config`.
         
     start_time : float, default=0
         Lower bound (in seconds) of the timeline in the SNUB browser.
@@ -135,7 +135,7 @@ def create_project(
             warnings.warn('The directory {} already exists. The config file will be overwritten, but existing data files will be left in place.'.format(project_directory))
         else:
             raise AssertionError(
-                'This project already exists. Set `overwrite=True` or use `snub.io.project.edit_config`'
+                'This project already exists. Set `overwrite=True` or use `snub.io.edit_config`'
             )
     if duration is None and end_time is None:
         raise AssertionError(
@@ -186,7 +186,7 @@ def load_config(project_directory):
     config_path = os.path.join(project_directory, 'config.json')
     if not os.path.exists(config_path):
         raise AssertionError(
-            'There is no config file in the project directory. Use `snub.io.project.create_project` to create a new config file')
+            'There is no config file in the project directory. Use `snub.io.create_project` to create a new config file')
         
     config = json.load(open(config_path,'r'))
     return config
@@ -223,7 +223,7 @@ def _confirm_no_existing_dataview(config, dataview_type, name):
     index = _get_named_dataview_index(config, dataview_type, name)
     if index is not None:
         raise AssertionError(
-            'There is already a {} with the name "{}". Use `snub.io.project.edit_dataview_properties to change its properties, or remove using `snub.io.project.remove_dataview`'.format(dataview_type, name))
+            'There is already a {} with the name "{}". Use `snub.io.edit_dataview_properties to change its properties, or remove using `snub.io.remove_dataview`'.format(dataview_type, name))
     
     
 def _random_color():
@@ -749,7 +749,7 @@ def add_heatmap(
     """Add a heatmap to your SNUB project.
     If plotting neural data, it is helpful to sort the rows of the heatmap
     so that correlated neurons are clustered together (use the ``sort_method``
-    argument; see :py:func:`snub.io.manifold.sort` for options).
+    argument; see :py:func:`snub.io.sort` for options).
     
     
     Parameters
@@ -784,7 +784,7 @@ def add_heatmap(
     sort_method: str/ndarray, default=None
         Method for sorting the rows of the heatmap. ``sort_method`` can 
         either be an array directly specifying the row order or a str
-        defining a sort method from :py:func:`snub.io.manifold.sort`.
+        defining a sort method from :py:func:`snub.io.sort`.
         If ``sort_method=None``, the original ordering of the rows will be used.
         
     labels: list of str, default=None
@@ -893,7 +893,7 @@ def add_heatmap(
     if sort_method is None:
         row_order = np.arange(data.shape[0])
     if isinstance(sort_method, str):
-        from snub.io.manifold import sort
+        from snub.io import sort
         row_order = sort(data, method=sort_method)
     else:
         try: data[sort_method]
@@ -968,13 +968,13 @@ def add_spikeplot(
     """Add a spike plot to your SNUB project.
     By default, spike plots convert to heatmaps when sufficiently zoomed out.
     For electrophysiology, this corresponds to showing firing *rates* as
-    opposed to firing *events* (see :py:func:`snub.io.manifold.firing_rates`).
-    Most of the options for :py:func:`snub.io.project.add_heatmap` 
+    opposed to firing *events* (see :py:func:`snub.io.firing_rates`).
+    Most of the options for :py:func:`snub.io.add_heatmap` 
     can also be used here. 
     
     If plotting neural data, it is helpful to sort the rows
     so that correlated neurons are clustered together (use the ``sort_method``
-    argument; see :py:func:`snub.io.manifold.sort` for options; the firing
+    argument; see :py:func:`snub.io.sort` for options; the firing
     rates are used for sorting).
     
     Parameters
@@ -1024,7 +1024,7 @@ def add_spikeplot(
     print('Saved spike data to '+spikes_path_abs)
     
     # save heatmap
-    from snub.io.manifold import firing_rates
+    from snub.io import firing_rates
     heatmap_data, start_time = firing_rates(spike_times, spike_labels, window_size=window_size, window_step=window_step)
     heatmap_path = name+'.spikeplot_heatmap.npy'
     heatmap_path_abs = os.path.join(project_directory,heatmap_path)
@@ -1059,7 +1059,7 @@ def add_spikeplot(
     if sort_method is None:
         row_order = np.arange(heatmap_data.shape[0])
     elif isinstance(sort_method, str):
-        from snub.io.manifold import sort
+        from snub.io import sort
         row_order = sort(heatmap_data, method=sort_method)
     else:
         row_order = sort_method.astype(int)
