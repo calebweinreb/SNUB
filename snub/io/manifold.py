@@ -1,35 +1,8 @@
 import numpy as np
-
 import warnings
 
-def sort(
-    data, 
-    method='rastermap', 
-    options={}
-):
-    """Linearly sort neurons in order to group those with similar activity
 
-    Parameters
-    ----------
-    method: {'rastermap'}
-        Method to use for sorting (currently only rastermap is implemented)
-
-    options: dict, default={}
-        Sorting method-specific options.
-
-        'rastermap'
-            ``options`` will be passed as keyword arguments when initializing
-            `rastermap.mapping.Rastermap <https://github.com/MouseLand/rastermap/blob/40867ce9a8b2850d76483890740c0dc10d6cb413/rastermap/mapping.py#L531>`_
-    """
-    valid_sort_methods = ['rastermap']
-    if not method in valid_sort_methods:
-        raise AssertionError(method+' is not a valid sort method. Must be one of '+repr(valid_sort_methods))
-    if method=='rastermap':
-        print('Computing row order with rastermap')
-        from rastermap import mapping
-        model = mapping.Rastermap(n_components=1).fit(data)
-        return np.argsort(model.embedding[:,0])
-
+# Binning / smoothing
     
 def firing_rates(
     spike_times, 
@@ -87,42 +60,82 @@ def firing_rates(
 
 def bin_data(
     data, 
-    binsize
+    binsize,
+    axis=-1,
+    return_intervals=False
 ):
-    """Bin data column-wise using non-overlaping windows.
-
-    Parameters
-    ----------
-    data: ndarray
-        Data for binning, where rows are variables and columns are observations.
-
-    binsize: int
-        Width of the window used for binning
+    """Bin data using non-overlaping windows along `axis`
 
     Returns
     -------
     data_binned: ndarray
 
-    bin_intervals: ndarray
+    bin_intervals: ndarray (returned if ``rerturn_intervals=True``)
         (N,2) array with the start and end index of each bin
     """
-    pad_amount = (-data.shape[1])%binsize
-    num_bins = int((data.shape[1]+pad_amount)/binsize)
+    data = np.moveaxis(data,axis,-1)
+    pad_amount = (-data.shape[-1])%binsize
+    num_bins = int((data.shape[-1]+pad_amount)/binsize)
 
-    data_padded = np.pad(data,((0,0),(0,pad_amount)))
-    data_binned = data_padded.reshape(-1, num_bins, binsize).mean(2)
-    if pad_amount > 0: data_binned[:,-1] = data_binned[:,-1] * binsize/pad_amount
+    data_padded = np.pad(data,[(0,0)]*(len(data.shape)-1)+[(0,pad_amount)])
+    data_binned = data_padded.reshape(*data.shape[:-1], num_bins, binsize).mean(-1)
+    if pad_amount > 0: data_binned[...,-1] = data_binned[...,-1] * binsize/(binsize-pad_amount)
+    data_binned = np.moveaxis(data_binned,-1,axis)
 
-    bin_starts = np.arange(0,num_bins)*binsize
-    bin_ends = np.arange(1,num_bins+1)*binsize
-    bin_ends[-1] = data.shape[1]
-    bin_intervals = np.vstack((bin_starts,bin_ends)).T
-    return data_binned, bin_intervals
+    if return_intervals:
+        bin_starts = np.arange(0,num_bins)*binsize
+        bin_ends = np.arange(1,num_bins+1)*binsize
+        bin_ends[-1] = data.shape[-1]
+        bin_intervals = np.vstack((bin_starts,bin_ends)).T
+        return data_binned, bin_intervals
+    else: return data_binned
+
+
+
+# Normalization
 
 def zscore(data, axis=0, eps=1e-10):
+    """
+    Z-score standardize the data along ``axis``
+    """
     mean = np.mean(data, axis=axis, keepdims=True)
     std = np.std(data, axis=axis, keepdims=True) + eps
     return (data-mean)/std
+
+
+
+    
+
+# Dimensionality reduction
+
+def sort(
+    data, 
+    method='rastermap', 
+    options={}
+):
+    """Linearly sort neurons in order to group those with similar activity
+
+    Parameters
+    ----------
+    method: {'rastermap'}
+        Method to use for sorting (currently only rastermap is implemented)
+
+    options: dict, default={}
+        Sorting method-specific options.
+
+        'rastermap'
+            ``options`` will be passed as keyword arguments when initializing
+            `rastermap.mapping.Rastermap <https://github.com/MouseLand/rastermap/blob/40867ce9a8b2850d76483890740c0dc10d6cb413/rastermap/mapping.py#L531>`_
+    """
+    valid_sort_methods = ['rastermap']
+    if not method in valid_sort_methods:
+        raise AssertionError(method+' is not a valid sort method. Must be one of '+repr(valid_sort_methods))
+    if method=='rastermap':
+        print('Computing row order with rastermap')
+        from rastermap import mapping
+        model = mapping.Rastermap(n_components=1).fit(data)
+        return np.argsort(model.embedding[:,0])
+
 
 def umap_embedding(
     data, 

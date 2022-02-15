@@ -103,12 +103,12 @@ Add a UMAP plot of neural activity states
 .. code-block:: python
 
     # bin the calcium data into 400ms bins prior to UMAP
-    binned_calcium_data,_ = snub.io.bin_data(calcium_data, 6)
+    binned_calcium_data = snub.io.bin_data(calcium_data, 6)
 
     # bin the behavior annotations so we can plot them over the UMAP
     # also truncate so that they are aligned with the neural data start time
     behavior_truncated = behavior_annotations[:,200:-200]
-    binned_behavior_annotations,_ = snub.io.bin_data(behavior_truncated, 12)
+    binned_behavior_annotations = snub.io.bin_data(behavior_truncated, 12)
 
     # check that truncation was correct - array sizes must have same # of columns
     print(binned_calcium_data.shape, binned_behavior_annotations.shape)
