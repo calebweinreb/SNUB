@@ -17,53 +17,7 @@ from snub.gui.utils import HeaderMixin, AdjustColormapDialog, IntervalIndex
 
 
 
-class SelectionRectangle(pg.GraphicsObject):
-    def __init__(self, topLeft=(0,0), size=(0,0)):
-        pg.GraphicsObject.__init__(self)
-        self.topLeft = topLeft
-        self.size = size
-        self.generatePicture()
 
-    def generatePicture(self):
-        self.picture = QPicture()
-        p = QPainter(self.picture)
-        p.setPen(pg.mkPen('w'))
-        p.setBrush(pg.mkBrush((255,255,255,50)))
-        tl = QPointF(self.topLeft[0], self.topLeft[1])
-        size = QSizeF(self.size[0], self.size[1])
-        p.drawRect(QRectF(tl, size))
-        p.end()
-
-    def paint(self, p, *args):
-        p.drawPicture(0, 0, self.picture)
-
-    def update_location(self, topLeft, size):
-        self.topLeft = topLeft
-        self.size = size
-        self.generatePicture()
-
-    def boundingRect(self):
-        return QRectF(self.picture.boundingRect())
-
-
-
-class ScrubbableViewBox(pg.ViewBox):
-    drag_event = pyqtSignal(object, Qt.Modifier)
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def mouseDragEvent(self, event):
-        event.accept()
-        modifiers = QApplication.keyboardModifiers()
-        self.drag_event.emit(event, modifiers)
-        if not modifiers in [Qt.ShiftModifier,Qt.ControlModifier]:
-            pg.ViewBox.mouseDragEvent(self, event)
-
-
-
-
-############################################
-# THIS IS A CONTSTRUCTION SITE MOVING TO VISPY
  
 class ScatterPanel(Panel, HeaderMixin):
     eps = 1e-10
@@ -98,6 +52,8 @@ class ScatterPanel(Panel, HeaderMixin):
         self.plot_order = np.arange(self.data.shape[0])
         self.interval_index = IntervalIndex(min_step=self.min_step, intervals=self.data[:,2:4])
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
+        self.feature_menu = QListWidget(self)
+        self.feature_menu.itemClicked.connect(self.feature_menu_item_clicked)
 
         self.canvas = SceneCanvas(self, keys='interactive', show=True)
         self.canvas.events.mouse_move.connect(self.mouse_move)
@@ -109,11 +65,17 @@ class ScatterPanel(Panel, HeaderMixin):
         self.current_node_marker = Markers(antialias=0)
         self.rect = Rectangle(border_color=(1,1,1), color=(1,1,1,.2), center=(0,0), width=1, height=1)
         self.viewbox.add(self.scatter)
-        self.initUI(name=name, xlim=xlim, ylim=ylim)
+        self.initUI(name=name, xlim=xlim, ylim=ylim, )
 
     def initUI(self, xlim=None, ylim=None, **kwargs):
         super().initUI(**kwargs)
-        self.layout.addWidget(self.canvas.native, 1)
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.addWidget(self.feature_menu)
+        splitter.addWidget(self.canvas.native)
+        splitter.setStretchFactor(0,3)
+        splitter.setStretchFactor(1,3)
+        self.feature_menu.hide()
+        self.layout.addWidget(splitter)
         self.update_scatter()
         if xlim is None: xlim = [self.data[:,0].min(),self.data[:,0].max()]
         if ylim is None: ylim = [self.data[:,1].min(),self.data[:,1].max()]
@@ -122,7 +84,10 @@ class ScatterPanel(Panel, HeaderMixin):
         self.current_node_marker.order=1
         self.scatter_selected.order=2
         self.scatter.order=3
-        
+        self.feature_menu.setStyleSheet("""
+            QListWidget::item { background-color : #3E3E3E; color:white; padding: 5px 6px 5px 6px;}
+            QListWidget::item:hover, QLabel:hover { background-color: #999999; color:white; } """)
+
 
     def update_scatter(self):
         pos = self.data[self.plot_order,:2]
@@ -166,10 +131,12 @@ class ScatterPanel(Panel, HeaderMixin):
 
 
     def context_menu(self, event):
-        menu_options = [('Adjust colormap range', self.show_adjust_colormap_dialog),
-                        ('Sort by color value', self.sort_by_color_value),
+        menu_options = [('Show feature menu', self.show_feature_menu),
+                        ('Hide feature menu', self.hide_feature_menu),
+                        ('Get enriched features', self.get_enriched_features),
+                        ('Adjust colormap range', self.show_adjust_colormap_dialog),
+                        ('Sort nodes by color', self.sort_by_color_value),
                         ('Restore original order', self.sort_original)]
-
         contextMenu = QMenu(self)
         for name,slot in menu_options:
             label = QLabel(name)
@@ -177,22 +144,29 @@ class ScatterPanel(Panel, HeaderMixin):
             action.setDefaultWidget(label)
             action.triggered.connect(slot)
             contextMenu.addAction(action)
-
-        colorby = QMenu('Color by...', contextMenu)
-        for name in self.feature_labels+['(No color)']:
-            label = QLabel(name)
-            action = QWidgetAction(self)
-            action.setDefaultWidget(label)
-            action.triggered.connect(partial(self.colorby,name))
-            colorby.addAction(action)
-
-        contextMenu.addMenu(colorby)
         contextMenu.setStyleSheet("""
-            QWidget { background-color : #3E3E3E; }
             QMenu::item, QLabel { background-color : #3E3E3E; padding: 5px 6px 5px 6px;}
             QMenu::item:selected, QLabel:hover { background-color: #999999;} """)
         action = contextMenu.exec_(event.native.globalPos())
 
+    def feature_menu_item_clicked(self, item):
+        self.colorby(item.text())
+
+    def hide_feature_menu(self):
+        self.feature_menu.hide()
+
+    def show_feature_menu(self, *args, feature_order=None):
+        self.feature_menu.clear()
+        if feature_order is None: feature_order = self.feature_labels
+        for name in feature_order: self.feature_menu.addItem(name)
+        self.feature_menu.show()
+
+    def get_enriched_features(self):
+        if self.is_selected.sum() > 0 and len(self.feature_labels)>0:
+            features_zscore = (self.data[:,2:] - self.data[:,2:].mean(0))/(np.std(self.data[:,2:],axis=0)+self.eps)
+            enrichment = features_zscore[self.is_selected].mean(0)
+            feature_order = [self.feature_labels[i] for i in np.argsort(-enrichment)]
+            self.show_feature_menu(feature_order=feature_order)
 
     def update_colormap_range(self, vmin, vmax):
         self.vmin,self.vmax = vmin,vmax
@@ -203,9 +177,9 @@ class ScatterPanel(Panel, HeaderMixin):
         self.update_scatter()
 
     def sort_by_color_value(self):
-        label = self.current_feature_label
-        if label in self.feature_labels:
-            x = self.data[:,2+self.feature_labels.index(label)]
+        self.current_feature_label = self.current_feature_label
+        if self.current_feature_label in self.feature_labels:
+            x = self.data[:,2+self.feature_labels.index(self.current_feature_label)]
             self.plot_order = np.argsort(-x)
             self.update_scatter()
 
@@ -214,8 +188,8 @@ class ScatterPanel(Panel, HeaderMixin):
 
     def colorby(self, label):
         self.current_feature_label = label
-        if label in self.feature_labels:
-            x = self.data[:,2+self.feature_labels.index(label)]
+        if self.current_feature_label in self.feature_labels:
+            x = self.data[:,2+self.feature_labels.index(self.current_feature_label)]
             self.vmin,self.vmax = x.min(),x.max()
             self.adjust_colormap_dialog.update_range(self.vmin,self.vmax)
         self.update_scatter()
