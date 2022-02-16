@@ -892,7 +892,7 @@ def add_heatmap(
     # save row order
     if sort_method is None:
         row_order = np.arange(data.shape[0])
-    if isinstance(sort_method, str):
+    elif isinstance(sort_method, str):
         from snub.io import sort
         row_order = sort(data, method=sort_method)
     else:
