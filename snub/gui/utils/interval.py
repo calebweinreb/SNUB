@@ -58,8 +58,15 @@ class IntervalIndexBase():
             return query_intersection_lengths / query_lengths
         else: return np.zeros(query_intervals.shape[0])
 
+    def all_containments_both(self, ref_intervals, query_locations):
+        raise NotImplementedError()
+
     def intervals_containing(self, query_locations):
-        return self.all_containments_both(self.intervals, query_locations)[1]
+        query_ixs,ref_ixs = self.all_containments_both(self.intervals, query_locations)
+        valid_containments = np.all([
+                self.intervals[ref_ixs,0] <= query_locations[query_ixs],
+                self.intervals[ref_ixs,1] >= query_locations[query_ixs]],axis=0)
+        return ref_ixs[valid_containments], query_ixs[valid_containments]
 
 
 try:

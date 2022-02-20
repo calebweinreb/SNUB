@@ -125,8 +125,8 @@ Add a UMAP plot of neural activity states
         binsize=0.5,
         start_time=6.666,
         pointsize=5,
-        features=binned_behavior_annotations.T,
-        feature_labels=behavior_labels)
+        variables=binned_behavior_annotations.T,
+        variable_labels=behavior_labels)
 
 
 
@@ -330,7 +330,7 @@ Color the scatter plot
 Another way to probe the scatter plot is through node coloring.
 
 * Use right-click -> "Color by ..." to view variables of interest in the scatter plot.
-* Include variables using ``features`` and ``feature_labels`` in :py:func:`snub.io.add_scatter`.
+* Include variables using ``variables`` and ``variable_labels`` in :py:func:`snub.io.add_scatter`.
 * Bring nodes with high values to the top using right-click -> "Sort by color value".
 
 .. image:: ../media/use_case4.gif

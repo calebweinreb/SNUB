@@ -558,8 +558,8 @@ def add_scatter(
     time_intervals=None,
     binsize=None,
     start_time=None,
-    features=None,
-    feature_labels=None,
+    variables=None,
+    variable_labels=None,
     colormap='viridis',
     xlim=None, 
     ylim=None, 
@@ -604,16 +604,16 @@ def add_scatter(
         with the scatter plot. ``start_time`` is used in conjunction with
         ``binsize`` to construct the time interval for each point. 
         
-    features: ndarray, default=None
-        Variables to use for coloring nodes in the scatter plot. ``features``
+    variables: ndarray, default=None
+        Variables to use for coloring nodes in the scatter plot. ``variables``
         should be a numpy array of shape (N,M) where N is the number of nodes
-        and M is the number of features. ``feature_labels`` must be specified as well. 
+        and M is the number of variables. ``variable_labels`` must be specified as well. 
         
-    feature_labels: list(str), default=None
-        Label corresponding to each column of ``features``.
+    variable_labels: list(str), default=None
+        Label corresponding to each column of ``variables``.
         
     colormap: str, default='viridis'
-        Colormap used for plotting `features` (must be one of the
+        Colormap used for plotting `variables` (must be one of the
         colormaps in matplotlib).
         
     xlim, ylim: [float, float], default=None
@@ -684,14 +684,14 @@ def add_scatter(
         time_intervals = generate_intervals(start_time, binsize, num_points)
         print('Initializing time intervals using start_time={} and binsize={}'.format(start_time, binsize))
     
-    # initialize features:
-    if features is None and feature_labels is None: features,feature_labels = np.zeros((num_points,0)),[]
-    elif features is None or feature_labels is None: raise AssertionError('``features`` and ``feature_labels`` must both be specified')
-    elif len(feature_labels) != features.shape[1]: raise AssertionError('The length of ``features_labels`` must match the number of columns in ``features``')
-    elif features.shape[0] != num_points: raise AssertionError('``features`` must have the same number of rows as `xy_coordinates`')
+    # initialize variables:
+    if variables is None and variable_labels is None: variables,variable_labels = np.zeros((num_points,0)),[]
+    elif variables is None or variable_labels is None: raise AssertionError('``variables`` and ``variable_labels`` must both be specified')
+    elif len(variable_labels) != variables.shape[1]: raise AssertionError('The length of ``variables_labels`` must match the number of columns in ``variables``')
+    elif variables.shape[0] != num_points: raise AssertionError('``variables`` must have the same number of rows as `xy_coordinates`')
     
-    # save coordinatesm, time intervals and features
-    data = np.hstack((xy_coordinates, time_intervals, features))
+    # save coordinatesm, time intervals and variables
+    data = np.hstack((xy_coordinates, time_intervals, variables))
     data_path = name+'.scatter_data.npy'
     data_path_abs = os.path.join(project_directory,data_path)
     np.save(data_path_abs, data)
@@ -706,7 +706,7 @@ def add_scatter(
         'facecolor': facecolor,
         'edgecolor': edgecolor,
         'colormap': colormap,
-        'feature_labels':feature_labels,
+        'variable_labels':variable_labels,
         'selected_edgecolor': selected_edgecolor,
         'current_node_size': current_node_size,
         'current_node_color': current_node_color,
@@ -733,7 +733,7 @@ def add_heatmap(
     start_time=None,
     sort_method=None,
     labels=None,
-    show_labels=False,
+    initial_show_labels=True,
     max_label_width=300, 
     label_color=(255,255,255),
     label_font_size=12, 
@@ -788,28 +788,24 @@ def add_heatmap(
         If ``sort_method=None``, the original ordering of the rows will be used.
         
     labels: list of str, default=None
-        Labels for each variable (row) in the heatmap. If ``show_labels=True``,
-        the labels are rendered within SNUB. If ``add_traceplot=True``, the 
-        labels are also used to plot specific variables in the trace plot
-        associated with the heatmap. When no labels are given, they
-        default to the integer order of each row. If the elements of ``labels``
-        are not unique, their integer order is prepended. 
+        Labels for each variable (row) in the heatmap.  If ``add_traceplot=True``, 
+        the labels are also used to plot specific variables in the trace plot
+        associated with the heatmap. When no labels are given, they default
+        to the integer order of each row. If the elements of ``labels`` are not
+        unique, their integer order is prepended. 
         
-    show_labels: bool, default=False
-        Determines whether labels are rendered on the left side of the heatmap
-        in SNUB. It is recommended to leave ``show_labels=False`` when the heatmap
-        contains a large number of rows. 
+    initial_show_labels: bool, default=True
+        Determines whether row labels are initially visible.
         
     max_label_width: int, default=300
-        If ``show_labels=True``, ``max_label_width`` determines how far
-        the label text can encroach on the heatmap (in pixels). This 
-        is only relevant if any of the labels are really long. 
+        How far the label text can encroach on the heatmap (in pixels). 
+        This is only relevant if any of the labels are really long. 
     
     label_color: (int,int,int), default=(255,255,255)
-        Color of the labels superimposed on the heatmap if ``show_labels=True``. 
+        Color of the labels superimposed on the heatmap. 
     
     label_font_size: int, default=12
-        Size of the labels superimposed on the heatmap if ``show_labels=True``. 
+        Size of the labels superimposed on the heatmap. 
     
     colormap: str, default='viridis'
         Colormap used for rendering the heatmap values. The colormap
@@ -925,7 +921,7 @@ def add_heatmap(
         'data_path': data_path,
         'intervals_path':intervals_path,
         'labels_path': labels_path,
-        'show_labels': show_labels,
+        'initial_show_labels': initial_show_labels,
         'row_order_path': row_order_path,
         'max_label_width': max_label_width,
         'label_color': label_color,
@@ -955,7 +951,7 @@ def add_spikeplot(
     window_step=0.02,
     labels=None,
     sort_method=None,
-    show_labels=False,
+    initial_show_labels=True,
     max_label_width=300, 
     label_color=(255,255,255),
     label_font_size=12, 
@@ -1094,7 +1090,7 @@ def add_spikeplot(
         'intervals_path':intervals_path,
         'labels_path': labels_path,
         'row_order_path': row_order_path,
-        'show_labels': show_labels,
+        'initial_show_labels': initial_show_labels,
         'max_label_width': max_label_width,
         'label_color': label_color,
         'label_font_size':label_font_size,

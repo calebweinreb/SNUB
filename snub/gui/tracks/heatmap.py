@@ -128,15 +128,14 @@ class Heatmap(Track):
     display_trace_signal = pyqtSignal(str)
     
     def __init__(self, config, selected_intervals, labels_path=None, data_path=None, row_order_path=None,
-                 intervals_path=None, start_time=0, colormap='viridis', max_label_width=300, show_labels=False,
-                 label_color=(255,255,255), label_font_size=12, vmin=0, vmax=1, add_traceplot=False, 
-                 vertical_range=None, **kwargs):
+                 intervals_path=None, start_time=0, colormap='viridis', max_label_width=300, 
+                 initial_show_labels=True, label_color=(255,255,255), label_font_size=12, vmin=0, vmax=1, 
+                 add_traceplot=False, vertical_range=None, **kwargs):
         super().__init__(config, **kwargs)
         t = time.time()
         self.selected_intervals = selected_intervals
         self.vmin,self.vmax = vmin,vmax
         self.colormap = colormap
-        self.show_labels = show_labels
         self.add_traceplot = add_traceplot
         self.min_step = config['min_step']
 
@@ -162,6 +161,7 @@ class Heatmap(Track):
 
         self.heatmap_labels = HeatmapLabels(self.labels, label_order=self.row_order, label_color=label_color, 
                                             vertical_range=self.vertical_range, max_label_width=max_label_width, parent=self)
+        if not initial_show_labels: self.heatmap_labels.hide()
 
     def update_current_range(self, current_range):
         self.current_range = current_range
@@ -169,40 +169,60 @@ class Heatmap(Track):
 
 
     def contextMenuEvent(self, event):
-        menu_options = [('Adjust colormap range', self.show_adjust_colormap_dialog),
-                        ('Reorder by selection', self.reorder_by_selection),
-                        ('Restore original order', self.restore_original_order)]
+        contextMenu = QMenu(self)
+        def add_menu_item(name, slot, item_type='label'):
+            action = QWidgetAction(self)
+            if item_type == 'checkbox': 
+                widget = QCheckBox(name)
+                widget.stateChanged.connect(slot)
+            elif item_type == 'button':
+                widget = QPushButton(name)
+                widget.clicked.connect(slot)
+            elif item_type == 'label':
+                widget = QLabel(name)
+                action.triggered.connect(slot)
+            else: return
+            action.setDefaultWidget(widget)
+            contextMenu.addAction(action)  
+            return widget
 
+        # used to get row label and for zooming
+        y = event.y()/self.height()*(self.vertical_range[1]-self.vertical_range[0])+self.vertical_range[0]
+
+        # if there's an associated traceplot, offer to plot clicked row
         if self.add_traceplot:
-            y = event.y()/self.height()*(self.vertical_range[1]-self.vertical_range[0])+self.vertical_range[0]
             row_label = self.labels[self.row_order[int(y)]]
             display_trace_slot = lambda: self.display_trace_signal.emit(row_label)
-            menu_options.insert(0,('Plot trace: {}'.format(row_label), display_trace_slot))
+            add_menu_item('Plot trace: {}'.format(row_label), display_trace_slot)
 
-        contextMenu = QMenu(self)
-        for name,slot in menu_options:
-            label = QLabel(name)
-            action = QWidgetAction(self)
-            action.setDefaultWidget(label)
-            action.triggered.connect(slot)
-            contextMenu.addAction(action)
+        # show adjust colormap dialog
+        add_menu_item('Adjust colormap range', self.show_adjust_colormap_dialog) 
+        contextMenu.addSeparator()
 
-        button_options = [('Zoom in (vertical)', self.zoom_in_vertical),
-                          ('Zoom out (vertical)', self.zoom_out_vertical),
-                          ('Shift up', self.shift_up),
-                          ('Shift down', self.shift_down)]
+        if self.heatmap_labels.isVisible(): add_menu_item('Hide row labels', self.hide_labels)
+        else: add_menu_item('Show row labels', self.show_labels)
+        contextMenu.addSeparator()
 
-        for name,slot in button_options:
-            button = QPushButton(name)
-            action = QWidgetAction(self)
-            action.setDefaultWidget(button)
-            button.clicked.connect(slot)
-            contextMenu.addAction(action)
+        # for reordering rows 
+        add_menu_item('Reorder by selection', self.reorder_by_selection)
+        add_menu_item('Restore original order', self.restore_original_order)
+        contextMenu.addSeparator()
+
+        # for changing vertical range
+        add_menu_item('Zoom in (vertical)', partial(self.zoom_vertical,y,2/3), item_type='button')
+        add_menu_item('Zoom out (vertical)', partial(self.zoom_vertical,y,3/2), item_type='button')
 
         contextMenu.setStyleSheet("""
             QLabel, QPushButton { background-color : #3E3E3E; padding: 10px 12px 10px 12px;}
-            QLabel:hover, QPushButton:hover { background-color: #999999;} """)
+            QLabel:hover, QPushButton:hover { background-color: #999999;} 
+            QMenu::separator { background-color: rgb(20,20,20);} """)
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
+
+    def show_labels(self):
+        self.heatmap_labels.show()
+
+    def hide_labels(self):
+        self.heatmap_labels.hide()
 
     def reorder_by_selection(self):
         weights = self.selected_intervals.intersection_proportions(self.intervals)
@@ -234,46 +254,13 @@ class Heatmap(Track):
     def show_adjust_colormap_dialog(self):
         self.adjust_colormap_dialog.show()
 
-
-    def zoom_out_vertical(self):
-        center = np.mean(self.vertical_range)
-        width = (self.vertical_range[1]-self.vertical_range[0])
-        new_width = width * 2
-        new_vrange = [center-new_width/2,center+new_width/2]
-        new_vrange = np.around(np.clip(new_vrange,0,self.data.shape[0])).astype(int)
+    def zoom_vertical(self,origin,scale_factor):
+        scale_change = max(scale_factor, 1/(self.vertical_range[1]-self.vertical_range[0]))
+        new_vrange = [int(max(np.floor((self.vertical_range[0]-origin)*scale_change+origin),0)),
+                      int(min(np.ceil((self.vertical_range[1]-origin)*scale_change+origin),self.data.shape[0]))]
         self.vertical_range = new_vrange
         self.heatmap_image.update_vertical_range(self.vertical_range)
         self.heatmap_labels.update_vertical_range(self.vertical_range)
-
-    def zoom_in_vertical(self):
-        center = np.mean(self.vertical_range)
-        width = (self.vertical_range[1]-self.vertical_range[0])
-        new_width = max(width * .5,1)
-        new_vrange = [center-new_width/2,center+new_width/2]
-        new_vrange = np.around(np.clip(new_vrange,0,self.data.shape[0])).astype(int)
-        self.vertical_range = new_vrange
-        self.heatmap_image.update_vertical_range(self.vertical_range)
-        self.heatmap_labels.update_vertical_range(self.vertical_range)
-
-
-    def shift_down(self):
-        target_shift = (self.vertical_range[1]-self.vertical_range[0])/2
-        max_shift = self.data.shape[0]-self.vertical_range[1]
-        shift = int(min(target_shift, max_shift))
-        new_vrange = [self.vertical_range[0]+shift, self.vertical_range[1]+shift]
-        self.vertical_range = new_vrange
-        self.heatmap_image.update_vertical_range(self.vertical_range)
-        self.heatmap_labels.update_vertical_range(self.vertical_range)
-
-    def shift_up(self):
-        target_shift = (self.vertical_range[1]-self.vertical_range[0])/2
-        max_shift = self.vertical_range[0]
-        shift = int(min(target_shift, max_shift))
-        new_vrange = [self.vertical_range[0]-shift, self.vertical_range[1]-shift]
-        self.vertical_range = new_vrange
-        self.heatmap_image.update_vertical_range(self.vertical_range)
-        self.heatmap_labels.update_vertical_range(self.vertical_range)
-
 
 
 class HeadedHeatmap(TrackGroup):

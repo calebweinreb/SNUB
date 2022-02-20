@@ -58,7 +58,6 @@ class SpikePlot(Heatmap):
 
     def update_current_range(self, current_range):
         super().update_current_range(current_range)
-        self.heatmap_image
         if (self.current_range[1]-self.current_range[0]) >= self.heatmap_range:
             self.heatmap_image.show()
         else:
@@ -67,7 +66,7 @@ class SpikePlot(Heatmap):
             bgcolor = self.cmap[0]*(self.current_range[1]-self.current_range[0])/self.heatmap_range
             self.canvas.bgcolor = bgcolor
             self.lines.set_data(color=np.clip(bgcolor+.1,0,1))
-        
+
     def spike_coordinates(self):
         ycoords = self.max_label-np.argsort(self.row_order)[self.spike_labels]+.5
         return np.vstack((self.spike_times,ycoords)).T
@@ -83,16 +82,8 @@ class SpikePlot(Heatmap):
         super().zoom_in_vertical()
         self.viewbox.camera.set_range(x=self.current_range, y=self.get_ylim(), margin=1e-10)
 
-    def zoom_out_vertical(self):
-        super().zoom_out_vertical()
-        self.viewbox.camera.set_range(x=self.current_range, y=self.get_ylim(), margin=1e-10)
-
-    def shift_up(self):
-        super().shift_up()
-        self.viewbox.camera.set_range(x=self.current_range, y=self.get_ylim(), margin=1e-10)
-
-    def shift_down(self):
-        super().shift_down()
+    def zoom_vertical(self,origin,scale_factor):
+        super().zoom_vertical(origin,scale_factor)
         self.viewbox.camera.set_range(x=self.current_range, y=self.get_ylim(), margin=1e-10)
 
     def get_ylim(self):
