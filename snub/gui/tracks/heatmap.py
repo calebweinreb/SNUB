@@ -127,8 +127,8 @@ class HeatmapLabels(QWidget):
 class Heatmap(Track):
     display_trace_signal = pyqtSignal(str)
     
-    def __init__(self, config, selected_intervals, labels_path=None, data_path=None, row_order_path=None,
-                 intervals_path=None, start_time=0, colormap='viridis', max_label_width=300, 
+    def __init__(self, config, selected_intervals, labels_path=None, data_path=None, 
+                 intervals_path=None, colormap='viridis', max_label_width=300, row_order_path=None,
                  initial_show_labels=True, label_color=(255,255,255), label_font_size=12, vmin=0, vmax=1, 
                  add_traceplot=False, vertical_range=None, **kwargs):
         super().__init__(config, **kwargs)
@@ -141,7 +141,6 @@ class Heatmap(Track):
 
         self.data = np.load(os.path.join(config['project_directory'],data_path))
         self.intervals = np.load(os.path.join(config['project_directory'],intervals_path))
-        self.start_time = self.intervals[0,0]
 
         if labels_path is None: self.labels = [str(i) for i in range(self.data.shape[0])]
         else: self.labels = open(os.path.join(config['project_directory'],labels_path),'r').read().split('\n')
@@ -156,7 +155,7 @@ class Heatmap(Track):
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
         self.adjust_colormap_dialog.new_range.connect(self.update_colormap_range)
 
-        self.heatmap_image = HeatmapImage(config, image=self.get_image_data(), start_time=start_time, 
+        self.heatmap_image = HeatmapImage(config, image=self.get_image_data(), start_time=self.intervals[0,0], 
                                           binsize=self.min_step, vertical_range=self.vertical_range, parent=self)
 
         self.heatmap_labels = HeatmapLabels(self.labels, label_order=self.row_order, label_color=label_color, 
