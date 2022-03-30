@@ -6,6 +6,7 @@ import numpy as np
 from functools import partial
 from snub.gui.utils import IntervalIndex, CheckBox
 from snub.gui.stacks import PanelStack, TrackStack
+from snub.gui.tracks import TracePlot
 
 
 
@@ -94,6 +95,10 @@ class ProjectTab(QWidget):
         for panel in self.panelStack.widgets: 
             panel.new_current_time.connect(self.update_current_time)
             panel.selection_change.connect(self.update_selected_intervals)
+        for track in self.trackStack.tracks_flat():
+            if isinstance(track, TracePlot):
+                if track.bound_rois is not None:
+                    track.bind_rois(self.panelStack.get_by_name(track.bound_rois))
         self.timer.timeout.connect(self.increment_current_time)
 
         # initialize layout
@@ -170,6 +175,7 @@ class ProjectTab(QWidget):
             'tracks_size_ratio':2,
             'spikeplot': [],
             'traceplot':[],
+            'roiplot': [],
             'scatter': [],
             'heatmap': [],
             'video': [],
@@ -181,12 +187,13 @@ class ProjectTab(QWidget):
                 config[key] = value
 
         for widget_name, requred_keys in {
-            'heatmap': ['name', 'data_path', 'intervals_path','add_traceplot'],
+            'heatmap': ['name', 'data_path', 'intervals_path', 'add_traceplot'],
             'video': ['name', 'video_path', 'timestamps_path'],
             'mesh': ['name', 'data_path', 'faces_path', 'timestamps_path'],
             'traceplot': ['name', 'data_path'],
-            'spikeplot': ['name', 'heatmap_path', 'spikes_path', 'intervals_path'],
-            'scatter': ['name', 'data_path']
+            'spikeplot': ['name', 'heatmap_path', 'spikes_path', 'intervals_path', 'bound_heatmap'],
+            'roiplot' : ['name', 'data_path', 'rois_path', 'intervals_path'],
+            'scatter': ['name', 'data_path'],
         }.items():
             for props in config[widget_name]:
                 for k in requred_keys:

@@ -6,6 +6,7 @@ import pprint
 import warnings
 import pickle
 import colorsys
+import cv2
 from vidio import VideoReader
 
 def generate_intervals(start_time, binsize, num_intervals):
@@ -170,6 +171,7 @@ def create_project(
         'heatmap':[],
         'spikeplot':[],
         'traceplot':[],
+        'roiplot':[],
     }
         
     # create the project directory and config file
@@ -523,6 +525,7 @@ def add_traceplot(
     _confirm_no_existing_dataview(config, 'traceplot', name)
     
     # choose random colors for traces that werent assigned a color
+    trace_colors = dict(trace_colors)
     unassigned_traces = [k for k in traces.keys() if not k in trace_colors]
     print('Assigning random colors to traces',unassigned_traces)
     for k in unassigned_traces: trace_colors[k] = _random_color()
@@ -744,6 +747,7 @@ def add_heatmap(
     trace_height_ratio=1,
     heatmap_height_ratio=2,
     order=0,
+    rois = None
 ):
     
     """Add a heatmap to your SNUB project.
@@ -779,7 +783,6 @@ def add_heatmap(
         Start time (in seconds) of the earliest time interval in the
         heatmap. ``start_time`` is used in conjunction with
         ``binsize`` to construct the time interval for each column.
-        
         
     sort_method: str/ndarray, default=None
         Method for sorting the rows of the heatmap. ``sort_method`` can 
@@ -839,6 +842,13 @@ def add_heatmap(
         
     order: float, default=0
         Determines the order of placement within the track-stack.
+
+    rois: ndarray, default=None
+        ROI for each row of the heatmap (in same order). Providing this input
+        will result in the creation of an ``roiplot``. This is useful for heatmaps
+        that represent calcium imaging data. The shape should be ``(N,H,W)`` where 
+        ``N`` is the number of rows in the heatmap, and ``W,H`` are the width and height
+        respectively of the window containing the rois. 
         
     Returns
     -------
@@ -906,15 +916,17 @@ def add_heatmap(
     import cmapy
     try: cmapy.cmap(colormap)
     except: raise AssertionError(
-        '""{}"" is not a valid colormap. See https://matplotlib.org/stable/gallery/color/colormap_reference.html for a list of options'.format(colormap))
-        
+        '""{}"" is not a valid colormap. See https://matplotlib.org/stable/gallery/color/colormap_reference.html for a list of options'.format(colormap)) 
     if vmin is None: 
         vmin = np.percentile(data.flatten(),1)
         print('Set vmin to {}'.format(vmin))
     if vmax is None: 
         vmax = np.percentile(data.flatten(),99)
         print('Set vmax to {}'.format(vmax))
-        
+
+    # generare random colors for traceplot or roiplot
+    row_colors = [_random_color() for i in range(data.shape[0])]
+
     # add props to config
     props = {
         'name': name,
@@ -934,10 +946,22 @@ def add_heatmap(
         'heatmap_height_ratio':heatmap_height_ratio,
         'trace_height_ratio':trace_height_ratio,
         'order': order,
+        'row_colors': row_colors,
+        'bound_rois' : '' if rois is None else name
     }
+
+
     config['heatmap'].append(props)
     print('Added heatmap "{}"\n'.format(name))
     save_config(project_directory, config)
+
+    # add roi plot if rois are given
+    if rois is not None:
+        assert rois.shape[0]==data.shape[0], 'The number of ROIs must match the number of heatmap rows'
+        add_roiplot(project_directory, name, data_path, rois, 
+            time_intervals=intervals_path, labels=labels, vmin=vmin, vmax=vmax,
+            contour_colors={l:c for l,c in zip(labels,row_colors)})
+
     return props
     
     
@@ -1108,7 +1132,196 @@ def add_spikeplot(
     print('Added spike plot "{}"\n'.format(name))
     save_config(project_directory, config)
     return props
+
+
+
+def add_roiplot(
+    project_directory,
+    name,
+    data,
+    rois,
+    time_intervals=None,
+    binsize=None,
+    start_time=None,
+    sort_method=None,
+    labels=None,
+    contour_colors={},
+    linewidth=1,
+    colormap='gray', 
+    vmin=None, vmax=None,
+    height_ratio=1,
+    order=0,
+):
     
+    """Add an ROI plot to your SNUB project. In a typical use case this method 
+    will be called by :py:func:`snub.io.create_heatmap` (rather than the user).
+    
+    Parameters
+    ----------
+    project_directory : str 
+        Project that the ROI plot should be added to.
+        
+    name: str
+        The name of the ROI plot displayed in SNUB and used
+        for editing the config file. 
+        
+    data : ndarray | str
+        2D array where rows are variables and columns are time bins.
+        Can be the array itself or the relative path to a npy file.
+
+    rois: ndarray, default=None
+        ROI shapes as ``(N,H,W)`` array where ``N`` is the number of rows 
+        in the heatmap, and ``W,H`` are the width and height respectively 
+        of the window containing the rois.  
+
+    time_intervals : ndarray | str, default=None
+        Time interval (in seconds) associated with each column of the data array, 
+        given as a ``(N,2)`` array with ``[start,end]`` in each row. If 
+        ``time_intervals=None``, then values for ``binsize`` and ``start_time`` 
+        must be given. ``time_intervals`` can also be a string, in which case
+        it should be the relative path to a npy file. 
+
+    binsize: float, default=None
+        Uniform time interval (in seconds) associated with each column of the
+        data array. It is assumed that the intervals have no gaps or overlaps. 
+        If this is not the case, use the ``time_intervals`` argument. 
+        
+    start_time: float, default=None
+        Start time (in seconds) of the earliest time interval in the data
+        array. ``start_time`` is used in conjunction with ``binsize`` to 
+        construct the time interval for each column of the data array.
+                
+    labels: list of str | str, default=None
+        Label for each ROI. If a list, then labels in the list will be used.
+        Can also be a string containing the relative path to a labels file. 
+        If the ROI plot is bound to a heatmap, the labels are used to establish 
+        correspondence between the ROIs and the rows of the heatmap. When no 
+        labels are given, they default to the integer order of each row. If 
+        the elements of ``labels`` are not unique, their integer order is 
+        prepended. 
+
+    contour_colors: dict, default={}
+        To assign specific colors to any of the ROIs when plotting contours, 
+        use ``contour_colors[label] = (r,g,b)``, where r,g,b are ints [0-255].
+    
+    linewidth: int, default=1
+        Linewidth for plotting the contours outlining each ROI
+    
+    colormap: str, default='viridis'
+        Colormap used for rendering the ROI composite values. Colormap
+        names must be compatible with vispy. 
+        
+    vmin: float, default=0
+        Floor for the colormap. If ``vmin=None``, it will be set to to the 1st percentile
+        of the data values. This parameter can be adjusted within the browser.
+    
+    vmax: float, default=None
+        Ceiling for the colormap. If ``vmax=None``, it will be set to to the 99th percentile
+        of the data values. This parameter can be adjusted within the browser.
+    
+    height_ratio: int, default=1
+        The relative height initially allocated to this data-view in the panel-stack.
+        Spacing can also be adjusted within the browser. 
+        
+    order: float, default=0
+        Determines the order of placement within the panel-stack.
+        
+    Returns
+    -------
+    props: dict
+        ROI plot properties
+    """    
+
+    # check that project exists and a ROI plot with the given name does not already exist
+    config = load_config(project_directory)
+    _confirm_no_existing_dataview(config, 'roiplot', name)
+    
+    # load/save data
+    if isinstance(data,str):
+        data_path = data
+        data = np.load(os.path.join(project_directory,data_path))
+    else:
+        data_path = name+'.roi_data.npy'
+        data_path_abs = os.path.join(project_directory,data_path)
+        np.save(data_path_abs, data)
+        print('Saved ROI data to '+data_path_abs)
+
+    # save rois
+    rois_path = name+'.rois.npy'
+    rois_path_abs = os.path.join(project_directory,rois_path)
+    np.save(rois_path_abs, rois)
+    print('Saved ROIs to '+rois_path_abs)
+
+    # initialize/save time intervals
+    if isinstance(time_intervals, str):
+        intervals_path = time_intervals
+    else:
+        if time_intervals is None: 
+            if binsize is None or start_time is None:
+                raise AssertionError(
+                    'Either a `time_intervals` must be given or `binsize` and `start_time` must be specified')
+            time_intervals = generate_intervals(start_time, binsize, data.shape[1])
+            print('Initializing time intervals using start_time={} and binsize={}'.format(start_time, binsize))
+        
+        intervals_path = name+'.heatmap_intervals.npy'
+        intervals_path_abs = os.path.join(project_directory,intervals_path)
+        np.save(intervals_path_abs, time_intervals)
+        print('Saved time intervals to '+intervals_path_abs)
+
+    # save labels
+    if isinstance(labels,str):
+        labels_path = labels
+        labels = open(os.path.join(project_directory,labels_path)).read().split('\n')
+    else:
+        if labels is None: 
+            labels = [str(i) for i in range(data.shape[0])]
+            print('Creating labels from data row ordering')
+        elif len(labels) != data.shape[0]:
+            raise AssertionError(
+                'The length of `labels` ({}) does not match the number of rows in the heatmap ({})'.format(len(labels), data.shape[0]))
+        elif len(set(labels)) < len(labels):
+            print('labels are not unique: prepending integers')
+            labels = [str(i)+':'+l for i,l in enumerate(labels)]
+            
+        labels_path = name+'.heatmap_labels.txt'
+        labels_path_abs = os.path.join(project_directory,labels_path)
+        open(labels_path_abs,'w').write('\n'.join(labels))
+        print('Saved labels to '+labels_path_abs)
+
+    # choose random colors for ROIs that werent assigned a color
+    contour_colors = dict(contour_colors)
+    unassigned_rois = [k for k in labels if not k in contour_colors]
+    print('Assigning random colors to rois',unassigned_rois)
+    for k in unassigned_rois: contour_colors[k] = _random_color()
+        
+    # assign vmin and vmax
+    if vmin is None: 
+        vmin = np.percentile(data.flatten(),1)
+        print('Set vmin to {}'.format(vmin))
+    if vmax is None: 
+        vmax = np.percentile(data.flatten(),99)
+        print('Set vmax to {}'.format(vmax))
+
+    # add props to config
+    props = {
+        'name': name,
+        'data_path': data_path,
+        'rois_path' : rois_path,
+        'intervals_path':intervals_path,
+        'labels_path': labels_path,
+        'contour_colors':contour_colors,
+        'colormap':colormap,
+        'vmin':vmin,
+        'vmax':vmax,
+        'linewidth':linewidth,
+        'height_ratio': height_ratio,
+        'order': order
+    }
+    config['roiplot'].append(props)
+    print('Added roiplot "{}"\n'.format(name))
+    save_config(project_directory, config)
+    return props
+
 
 
 def add_mesh():

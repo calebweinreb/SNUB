@@ -8,6 +8,7 @@ import pickle
 import os
 
 from snub.gui.tracks import Track, TrackGroup
+from snub.io.project import _random_color
 
 class CheckableComboBox(QComboBox):
     toggleSignal = pyqtSignal(bool, int)
@@ -39,7 +40,9 @@ class CheckableComboBox(QComboBox):
 
 
 class TracePlot(Track):
-    def __init__(self, config, data_path=None, data=None, labels=None, 
+    visible_traces_signal = pyqtSignal(set)
+
+    def __init__(self, config, data_path=None, data=None, labels=None, bound_rois='',
                  initial_visible_traces=None, controls_padding_right=10, colors={},
                  yaxis_width=30, controls_padding_top=5, trace_label_margin=4, **kwargs):
 
@@ -47,6 +50,7 @@ class TracePlot(Track):
         self.controls_padding_right = controls_padding_right
         self.controls_padding_top = controls_padding_top
         self.trace_label_margin = trace_label_margin
+        self.bound_rois = None if len(bound_rois)==0 else bound_rois
 
         if data is not None: self.data = data
         else: self.data = pickle.load(open(os.path.join(config['project_directory'],data_path),'rb'))
@@ -55,10 +59,10 @@ class TracePlot(Track):
         elif len(self.data)>0: self.visible_traces = set([np.random.choice(list(self.data.keys()))])
         else: self.visible_traces = set([])
 
+        self.colors = dict(colors)
         for label in self.data: 
-            if not label in colors:
-                colors[label] = self.get_random_color()
-        self.colors = colors
+            if not label in self.colors:
+                self.colors[label] = _random_color()
         
         self.clearButton = QPushButton("Clear")
         self.clearButton.clicked.connect(self.clear)
@@ -90,12 +94,6 @@ class TracePlot(Track):
 
     def trace_label_button_push(self):
         self.hide_trace(self.sender().text())
-
-    def get_random_color(self):
-        hue = np.random.uniform(0,1)
-        saturation,value = 1,1
-        return [int(255*x) for x in colorsys.hsv_to_rgb(hue,1, 1)]
-
     
     def initUI(self):
         layout = QVBoxLayout(self)
@@ -142,6 +140,7 @@ class TracePlot(Track):
         self.plotWidget.clear()
         for label in self.visible_traces:
             self.plotWidget.plot(*self.data[label].T, pen=pg.mkPen(QColor(*self.colors[label])))
+        self.visible_traces_signal.emit(self.visible_traces)
 
     def update_controls_geometry(self): 
         self.controls.setGeometry(0, 0, self.width(), self.height())
@@ -159,6 +158,10 @@ class TracePlot(Track):
         super().resizeEvent(event)
         self.update_Xrange()
         self.update_controls_geometry()
+
+    def bind_rois(self, roiplot):
+        self.visible_traces_signal.connect(roiplot.update_visible_contours)
+        self.visible_traces_signal.emit(self.visible_traces)
 
 
 class HeadedTracePlot(TrackGroup):

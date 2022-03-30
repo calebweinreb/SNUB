@@ -12,8 +12,7 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath('../../'))
 
 
 # -- Project information -----------------------------------------------------
@@ -34,8 +33,8 @@ extensions = [
 	'sphinx.ext.autosummary',
 	'sphinx.ext.viewcode',
 	'sphinx.ext.coverage',
-	'sphinx.ext.autosectionlabel'
-]
+	'sphinx.ext.autosectionlabel']
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

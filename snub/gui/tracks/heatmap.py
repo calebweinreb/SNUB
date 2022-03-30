@@ -132,7 +132,6 @@ class Heatmap(Track):
                  initial_show_labels=True, label_color=(255,255,255), label_font_size=12, vmin=0, vmax=1, 
                  add_traceplot=False, vertical_range=None, **kwargs):
         super().__init__(config, **kwargs)
-        t = time.time()
         self.selected_intervals = selected_intervals
         self.vmin,self.vmax = vmin,vmax
         self.colormap = colormap
@@ -269,14 +268,15 @@ class HeadedHeatmap(TrackGroup):
 
 
 class HeatmapTraceGroup(TrackGroup):
-    def __init__(self, config, selected_intervals, trace_height_ratio=1, 
-                 heatmap_height_ratio=2, height_ratio=1, **kwargs):
+    def __init__(self, config, selected_intervals, trace_height_ratio=1, bound_rois='',
+                 heatmap_height_ratio=2, height_ratio=1, row_colors=[], **kwargs):
 
         heatmap = Heatmap(config, selected_intervals, height_ratio=heatmap_height_ratio, **kwargs)
 
         x = heatmap.intervals.mean(1)
         trace_data = {l:np.vstack((x,d)).T for l,d in zip(heatmap.labels, heatmap.data)}
-        trace = TracePlot(config, height_ratio=trace_height_ratio, data=trace_data, **kwargs)
+        colors = {l:c for l,c in zip(heatmap.labels, row_colors)}
+        trace = TracePlot(config, height_ratio=trace_height_ratio, data=trace_data, colors=colors, bound_rois=bound_rois, **kwargs)
 
         super().__init__(config, tracks={'trace':trace, 'heatmap':heatmap}, 
                     track_order=['trace','heatmap'], height_ratio=height_ratio, **kwargs)

@@ -136,6 +136,12 @@ class TrackStack(Stack):
         shift = np.clip(target_shift, min_shift, max_shift)
         self.update_current_range(new_range=(self.current_range[0]+shift,self.current_range[1]+shift))
 
-
+    def tracks_flat(self):
+        tracks = []
+        for track in self.widgets:
+            if isinstance(track, TrackGroup):
+                tracks += list(track.tracks.values())
+            else: tracks.append(track)
+        return tracks
 
 
