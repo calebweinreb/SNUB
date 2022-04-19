@@ -179,7 +179,6 @@ class ProjectTab(QWidget):
             'scatter': [],
             'heatmap': [],
             'video': [],
-            'mesh': [],
             'markers': {}}
 
         for key,value in default_config.items():
@@ -189,7 +188,6 @@ class ProjectTab(QWidget):
         for widget_name, requred_keys in {
             'heatmap': ['name', 'data_path', 'intervals_path', 'add_traceplot'],
             'video': ['name', 'video_path', 'timestamps_path'],
-            'mesh': ['name', 'data_path', 'faces_path', 'timestamps_path'],
             'traceplot': ['name', 'data_path'],
             'spikeplot': ['name', 'heatmap_path', 'spikes_path', 'intervals_path', 'bound_heatmap'],
             'roiplot' : ['name', 'data_path', 'rois_path', 'intervals_path'],

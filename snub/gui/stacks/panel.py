@@ -4,7 +4,7 @@ from PyQt5.QtGui import *
 import numpy as np
 
 from snub.gui.stacks import Stack
-from snub.gui.panels import MeshPanel, VideoPanel, ScatterPanel, ROIPanel
+from snub.gui.panels import VideoPanel, ScatterPanel, ROIPanel
 
 class PanelStack(Stack):
     def __init__(self, config, selected_intervals):
