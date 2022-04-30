@@ -189,7 +189,7 @@ class ProjectTab(QWidget):
             'heatmap': ['name', 'data_path', 'intervals_path', 'add_traceplot'],
             'video': ['name', 'video_path', 'timestamps_path'],
             'traceplot': ['name', 'data_path'],
-            'spikeplot': ['name', 'heatmap_path', 'spikes_path', 'intervals_path', 'bound_heatmap'],
+            'spikeplot': ['name', 'heatmap_path', 'spikes_path', 'intervals_path'],
             'roiplot' : ['name', 'data_path', 'rois_path', 'intervals_path'],
             'scatter': ['name', 'data_path'],
         }.items():
