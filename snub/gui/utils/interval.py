@@ -72,6 +72,9 @@ class IntervalIndexBase():
 try:
 
     from ncls import NCLS
+    # try executing so exception is triggered on import not at runtime
+    ncls.all_containments_both(np.arange(1),np.arange(1),np.arange(1));
+
     class IntervalIndex(IntervalIndexBase):
         def __init__(self, min_step=0.033, **kwargs):
             super().__init__(**kwargs)
@@ -85,8 +88,8 @@ try:
 
         def all_containments_both(self, ref_intervals, query_locations):
             query_locations = (query_locations / self.min_step).astype(int)
-            ncls = NCLS(*self.preprocess_for_ncls(self.intervals))
-            return ncls.all_containments_both(query_locations,query_locations, np.arange(len(query_locations)))
+            ncls = NCLS(*self.preprocess_for_ncls(ref_intervals))
+            return ncls.all_containments_both(query_locations, query_locations, np.arange(len(query_locations)))
 
         def all_overlaps_both(self, ref_intervals, query_intervals):
             query_intervals = self.preprocess_for_ncls(query_intervals)
