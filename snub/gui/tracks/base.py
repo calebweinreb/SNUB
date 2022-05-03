@@ -185,7 +185,7 @@ class TrackOverlay(Track):
         for key,marker in self.markers.items():
             qp.setPen(QPen(QColor(*marker['color']),1))
             r = self._time_to_position(marker['time'])
-            if r > 0 and r < self.width():
+            if r >= 0 and r <= self.width():
                 qp.drawLine(r,0,r,self.parent().height())
                 if key=='cursor' and r < self.width():
                     qp.setFont(QFont("Helvetica [Cronyx]", 12))

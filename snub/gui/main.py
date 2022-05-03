@@ -178,6 +178,7 @@ class ProjectTab(QWidget):
             'roiplot': [],
             'scatter': [],
             'heatmap': [],
+            'pose3D': [],
             'video': [],
             'markers': {}}
 

@@ -4,7 +4,7 @@ from PyQt5.QtGui import *
 import numpy as np
 
 from snub.gui.stacks import Stack
-from snub.gui.panels import VideoPanel, ScatterPanel, ROIPanel
+from snub.gui.panels import VideoPanel, ScatterPanel, ROIPanel, Pose3DPanel
 
 class PanelStack(Stack):
     def __init__(self, config, selected_intervals):
@@ -19,11 +19,11 @@ class PanelStack(Stack):
             panel = VideoPanel(config, **props)
             self.widgets.append(panel)
 
-        for props in config['mesh']:
-            panel = MeshPanel(config, **props)
+        for props in config['pose3D']: # initialize 3D pose viewer
+            panel = Pose3DPanel(config, **props)
             self.widgets.append(panel)
 
-        for props in config['roiplot']:
+        for props in config['roiplot']: # initialize ROI plot
             panel = ROIPanel(config, self.selected_intervals, **props)
             self.widgets.append(panel)
 

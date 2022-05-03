@@ -45,7 +45,8 @@ class TrackStack(Stack):
         self.initUI()
 
     def _time_to_position(self, t):
-        return time_to_position(self.current_range, self.width(), t)
+        p = time_to_position(self.current_range, self.width(), t)
+        return p
 
     def _position_to_time(self, p):
         return position_to_time(self.current_range, self.width(), p)
@@ -81,7 +82,7 @@ class TrackStack(Stack):
             self.update_current_range(new_range=new_range)
 
     def mouseMoveEvent(self, event):
-        t = max(self._position_to_time(event.x()),0)
+        t = np.clip(self._position_to_time(event.x()),*self.bounds)
         modifiers = QApplication.keyboardModifiers()
         if modifiers == Qt.ShiftModifier:
             self.selection_drag_move(t, 1)
@@ -92,7 +93,7 @@ class TrackStack(Stack):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            t = max(self._position_to_time(event.x()),0)
+            t = np.clip(self._position_to_time(event.x()),*self.bounds)
             modifiers = QApplication.keyboardModifiers()
             if modifiers == Qt.ShiftModifier:
                 self.selection_drag_start(t, 1)

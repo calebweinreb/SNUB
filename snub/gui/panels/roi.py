@@ -1,7 +1,6 @@
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-import pyqtgraph as pg
 import numpy as np
 import time
 import os
@@ -22,9 +21,9 @@ from snub.io.project import _random_color
 class ROIPanel(Panel, HeaderMixin):
     eps = 1e-10
 
-    def __init__(self, config, selected_intervals, rois_path=None, data_path=None, 
-                 labels_path=None, intervals_path=None, colors={}, linewidth=3, 
-                 colormap='gray', initial_selected_rois=[], display_normalized=True, 
+    def __init__(self, config, rois_path=None, data_path=None, labels_path=None, 
+                 intervals_path=None, colors={}, linewidth=3, colormap='gray', 
+                 initial_selected_rois=[], display_normalized=True, 
                  vmin=None, vmax=None, **kwargs):
 
         super().__init__(config, **kwargs)
@@ -41,9 +40,6 @@ class ROIPanel(Panel, HeaderMixin):
         if labels_path is None: self.labels = [str(i) for i in range(self.data.shape[0])]
         else: self.labels = open(os.path.join(config['project_directory'],labels_path),'r').read().split('\n')
         self.dims = self.rois.shape[1:]
-        
-        self.selected_intervals = selected_intervals
-        self.interval_index = IntervalIndex(min_step=config['min_step'], intervals=self.intervals)
         
         self.colors = dict(colors)
         for label in self.labels: 

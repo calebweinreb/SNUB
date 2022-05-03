@@ -167,7 +167,7 @@ def create_project(
         'center_playhead': center_playhead, 
         'video':[],
         'scatter':[],
-        'mesh':[],
+        'pose3D':[],
         'heatmap':[],
         'spikeplot':[],
         'traceplot':[],
@@ -1323,8 +1323,190 @@ def add_roiplot(
     return props
 
 
+from snub.io.project import load_config, _confirm_no_existing_dataview, generate_intervals, save_config
+import os 
 
-def add_mesh():
-    """None implemented
-    """
+def add_pose3D(
+    project_directory,
+    name,
+    data,
+    links=[],
+    binsize=None,
+    start_time=None,
+    time_intervals=None,
+    joint_labels=None,
+    joint_colors=None,
+    link_colors=None,
+    floor_bounds=None,
+    floor_height=0, 
+    floor_spacing=10, 
+    floor_color=(1,1,1,0.5),
+    height_ratio=1,
+    order=0,
+):
+    
+    """Add a 3D pose plot to your SNUB project. 
+    
+    Parameters
+    ----------
+    project_directory : str 
+        Project that the 3D post viewer should be added to.
+        
+    name: str
+        The name of the 3D pose viewer displayed in SNUB and used
+        for editing the config file. 
+        
+    data : ndarray | str
+        3D array with axes (time, keypoints, dims) containing the coordinates
+        of each keypoint at each time. Use NaN values to represent missing data.
+        Can be the array itself or the relative path to a npy file.
+
+    time_intervals : ndarray | str, default=None
+        Time interval (in seconds) associated with each pose in the data array, 
+        given as a ``(N,2)`` array with ``[start,end]`` in each row. If 
+        ``time_intervals=None``, then values for ``binsize`` and ``start_time`` 
+        must be given. ``time_intervals`` can also be a string, in which case
+        it should be the relative path to a npy file. 
+
+    binsize: float, default=None
+        Uniform time interval (in seconds) associated with each pose in the
+        data array. It is assumed that the intervals have no gaps or overlaps. 
+        If this is not the case, use the ``time_intervals`` argument. 
+        
+    start_time: float, default=None
+        Start time (in seconds) of the earliest time interval in the data
+        array. ``start_time`` is used in conjunction with ``binsize`` to 
+        construct the time interval for each column of the data array.
+                
+    joint_labels: list of str, default=None
+        Blah
+
+    links: list, default=[]
+        Blah
+    
+    height_ratio: int, default=1
+        The relative height initially allocated to this data-view in the panel-stack.
+        Spacing can also be adjusted within the browser. 
+        
+    order: float, default=0
+        Determines the order of placement within the panel-stack.
+        
+    Returns
+    -------
+    props: dict
+        3D pose viewer properties
+    """    
+
+    # check that project exists and a ROI plot with the given name does not already exist
+    config = load_config(project_directory)
+    _confirm_no_existing_dataview(config, 'pose3D', name)
+    
+    # load/save data
+    if isinstance(data,str):
+        data_path = data
+        data = np.load(os.path.join(project_directory,data_path))
+    else:
+        data_path = name+'.pose3D_data.npy'
+        data_path_abs = os.path.join(project_directory,data_path)
+        np.save(data_path_abs, data)
+        print('Saved 3D pose data to '+data_path_abs)
+
+
+    # initialize/save time intervals
+    if isinstance(time_intervals, str):
+        intervals_path = time_intervals
+    else:
+        if time_intervals is None: 
+            if binsize is None or start_time is None:
+                raise AssertionError(
+                    'Either a `time_intervals` must be given or `binsize` and `start_time` must be specified')
+            time_intervals = generate_intervals(start_time, binsize, data.shape[0])
+            print('Initializing time intervals using start_time={} and binsize={}'.format(start_time, binsize))
+        intervals_path = name+'.pose3D_intervals.npy'
+        intervals_path_abs = os.path.join(project_directory,intervals_path)
+        np.save(intervals_path_abs, time_intervals)
+        print('Saved time intervals to '+intervals_path_abs)
+
+    # create/save joint labels
+    if joint_labels is None: 
+        joint_labels = [str(i) for i in range(data.shape[1])]
+        print('Creating joint labels based on keypoint order')
+    elif len(joint_labels) != data.shape[1]:
+        raise AssertionError(
+            'The length of `joint_labels` ({}) does not match the size of \
+            `data` along axis 1 ({})'.format(len(joint_labels), data.shape[1]))
+    elif len(set(joint_labels)) < len(joint_labels):
+        print('joint labels are not unique: prepending integers')
+        joint_labels = [str(i)+':'+l for i,l in enumerate(joint_labels)]
+    joint_labels_path = name+'.joint_labels.txt'
+    joint_labels_path_abs = os.path.join(project_directory,joint_labels_path)
+    open(joint_labels_path_abs,'w').write('\n'.join(joint_labels))
+    print('Saved joint labels to '+joint_labels_path_abs)
+    
+    # save joint colors
+    if joint_colors is None:
+        joint_colors = np.ones((data.shape[1],3))
+        print('Assigning white color to all joints')
+    elif np.max(joint_colors) > 1:
+        joint_colors = np.array(joint_colors)/255
+        print('Normalizing joint colors: dividing by 255')
+    elif np.array(joint_colors).shape != (data.shape[1],3):
+        raise AssertionError(
+            '`joint_colors` must be array-like with shape (num_joints,3) \
+            where num_joints=data.shape[1]')
+    joint_colors_path = name+'.joint_colors.npy'
+    joint_colors_path_abs = os.path.join(project_directory,joint_colors_path)
+    np.save(joint_colors_path_abs, joint_colors)
+    print('Saved joint colors to '+joint_colors_path_abs)    
+    
+    # save links
+    links = np.array(links, dtype=int)
+    if np.any(links[:,0]==links[:,1]): raise AssertionError(
+        '`links` cannot contain any self-edges')
+    if not np.all([links>=0, links<data.shape[1]]): raise AssertionError(
+        'Links must consist of pairs of node indexes >=0 and <{}'.format(data.shape[1]))
+    links_path = name+'.pose3D_links.npy'
+    links_path_abs = os.path.join(project_directory,links_path)
+    np.save(links_path_abs, links)
+    print('Saved links to '+links_path_abs)
+        
+    # save link colors
+    if link_colors is None:
+        link_colors = np.ones((len(links),3))
+        print('Assigning white color to all links')
+    elif np.max(link_colors) > 1:
+        link_colors = np.array(link_colors)/255
+        print('Normalizing link colors: dividing by 255')
+    elif np.array(link_colors).shape != (len(links),3):
+        raise AssertionError(
+            '`joint_colors` must be array-like with shape (num_links,3) \
+            where num_link is the length of `links`')
+    link_colors_path = name+'.link_colors.npy'
+    link_colors_path_abs = os.path.join(project_directory,link_colors_path)
+    np.save(link_colors_path_abs, link_colors)
+    print('Saved link colors to '+link_colors_path_abs) 
+    
+    
+    if floor_bounds is None: floor_bounds = (0,0,0,0)
+
+    # add props to config
+    props = {
+        'name': name,
+        'data_path': data_path,
+        'links_path': links_path,
+        'joint_labels_path': joint_labels_path,
+        'link_colors_path': link_colors_path,
+        'joint_colors_path': joint_colors_path,
+        'intervals_path': intervals_path,
+        'floor_bounds': floor_bounds,
+        'floor_height': floor_height, 
+        'floor_spacing': floor_spacing, 
+        'floor_color': floor_color,
+        'height_ratio': height_ratio,
+        'order': order
+    }
+    config['pose3D'].append(props)
+    print('Added 3D pose viewer "{}"\n'.format(name))
+    save_config(project_directory, config)
+    return props
     
