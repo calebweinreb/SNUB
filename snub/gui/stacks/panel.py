@@ -24,7 +24,7 @@ class PanelStack(Stack):
             self.widgets.append(panel)
 
         for props in config['roiplot']: # initialize ROI plot
-            panel = ROIPanel(config, self.selected_intervals, **props)
+            panel = ROIPanel(config, **props)
             self.widgets.append(panel)
 
         self.initUI()
