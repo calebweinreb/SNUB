@@ -17,6 +17,42 @@ def position_to_time(current_range, width, p):
 
 
 
+
+'''
+class AddVlineDialog(QDialog):
+    #new_range = pyqtSignal(float,float)
+    def __init__(self, parent, position):
+        super().__init__(parent)
+        self.name = QLineEdit(self,)
+
+        create = QPushButton('Create')
+        create_save = QPushButton('Create and Save')
+
+
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self);
+        self.buttonBox.accepted.connect(self.accept_range)
+        self.buttonBox.rejected.connect(lambda: self.hide())
+
+        layout = QFormLayout(self)
+        layout.addRow("Colormap min", self.vmin)
+        layout.addRow("Colormap max", self.vmax)
+        layout.addWidget(self.buttonBox)
+
+    def update_range(self, vmin, vmax):
+        self.vmin.setText(str(vmin))
+        self.vmax.setText(str(vmax))
+
+    def accept_range(self):
+        try: 
+            vmin,vmax = float(self.vmin.text()), float(self.vmax.text())
+            self.new_range.emit(vmin, vmax)
+            self.hide()
+        except: pass
+'''
+
+
+
+
 class Track(QWidget):
     def __init__(self, config, parent=None, height_ratio=1, order=0, **kwargs):
         super().__init__(parent=parent)
@@ -39,6 +75,9 @@ class Track(QWidget):
         if current_range[1]-current_range[0] < 10: self.show_subsecond = True
         else: self.show_subsecond = False
         self.update()
+
+    def update_current_time(self, t):
+        self.current_time = t
 
     def update_time_unit(self, show_min_step):
         self.show_min_step = show_min_step
@@ -160,19 +199,53 @@ class Timeline(Track):
         qp.end()
 
 
+class LineOverlay(Track):
+    MARGIN = 5
+    FONTSIZE = 12
+    FONT = "Helvetica [Cronyx]"
+
+    def __init__(self, config, parent, timepoint, color=(250,250,250), label=None, show_time=True):
+        Track.__init__(self, config, parent=parent)
+        self.color = color
+        self.label = label
+        self.timepoint = timepoint
+        self.show_time = show_time
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+    def set_timepoint(self, t):
+        self.timepoint = t
+        self.update()
+
+    def paintEvent(self, event):
+        self.resize(self.parent().size())
+        qp = QPainter()
+        qp.begin(self)
+        qp.setRenderHint(QPainter.Antialiasing)
+        r = self._time_to_position(self.timepoint)
+        if r > 0 and r < self.width():
+            qp.drawLine(r,0,r,self.parent().height())
+            font = QFont(self.FONT, self.FONTSIZE)
+            fm = QFontMetrics(font)
+            qp.setFont(font)
+
+            if self.show_time:
+                text = self.get_time_label(self.timepoint)
+                w,h = fm.width(text), fm.height()
+                qp.drawText(r+self.MARGIN, self.height()-h-self.MARGIN, w, h, Qt.AlignLeft, text)
+
+            if self.label is not None:
+                w,h = fm.width(self.label), fm.height()
+                qp.drawText(r-self.MARGIN-w, self.height()-h-self.MARGIN, w, h, Qt.AlignRight, self.label)
+        qp.end()
 
 
-class TrackOverlay(Track):
+
+
+class SelectionOverlay(Track):
     def __init__(self, config, parent, selected_intervals):
         super().__init__(config, parent=parent)
         self.selected_intervals = selected_intervals
-        self.markers = config['markers']
-        self.markers['cursor'] = {'time':self.current_time, 'color':(250,250,250)}
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.CURSOR_LABEL_LEFT_MARGIN = 5
-        self.CURSOR_LABEL_BOTTOM_MARGIN = 5
-        self.CURSOR_LABEL_HEIGHT = 15
-        self.CURSOR_LABEL_WIDTH = 100
 
     def update_selected_intervals(self):
         self.update()
@@ -182,21 +255,6 @@ class TrackOverlay(Track):
         qp = QPainter()
         qp.begin(self)
         qp.setRenderHint(QPainter.Antialiasing)
-        for key,marker in self.markers.items():
-            qp.setPen(QPen(QColor(*marker['color']),1))
-            r = self._time_to_position(marker['time'])
-            if r >= 0 and r <= self.width():
-                qp.drawLine(r,0,r,self.parent().height())
-                if key=='cursor' and r < self.width():
-                    qp.setFont(QFont("Helvetica [Cronyx]", 12))
-                    label = self.get_time_label(marker['time'])
-                    qp.drawText(
-                        r+self.CURSOR_LABEL_LEFT_MARGIN,
-                        self.height()-self.CURSOR_LABEL_HEIGHT, 
-                        self.CURSOR_LABEL_WIDTH,
-                        self.height()-self.CURSOR_LABEL_BOTTOM_MARGIN,
-                        Qt.AlignLeft, label)
-        
         qp.setPen(Qt.NoPen)
         qp.setBrush(QBrush(QColor(255,255,255,100), Qt.SolidPattern))
         for s,e in self.selected_intervals.intervals:
@@ -205,8 +263,6 @@ class TrackOverlay(Track):
             if e_pos > s_pos and e_pos > 0 and s_pos < self.width(): 
                 qp.drawRect(s_pos, 0, e_pos-s_pos, self.height())
         qp.end()
-
-
 
 
 class TrackGroup(Track, HeaderMixin):

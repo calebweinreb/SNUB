@@ -21,9 +21,13 @@ class TrackStack(Stack):
         self.selection_drag_mode = 0 # +1 for shift-click, -1 for command-click
         self.selection_drag_initial_time = None
 
-        self.overlay = TrackOverlay(config, self, selected_intervals)
         self.timeline = Timeline(config)
         self.widgets = [self.timeline]
+
+        self.selection_overlay = SelectionOverlay(config, self, selected_intervals)
+        self.current_time_marker = LineOverlay(config, self, config['init_current_time'])
+        self.overlays = [self.selection_overlay, self.current_time_marker]
+        
 
         for props in config['heatmap']:
             if props['add_traceplot']:
@@ -41,7 +45,9 @@ class TrackStack(Stack):
             track = HeadedTracePlot(config, **props)
             self.widgets.append(track)
 
-        self.timeline.toggle_units_signal.connect(self.overlay.update_time_unit)
+        for w in self.widgets+self.overlays:
+            self.timeline.toggle_units_signal.connect(w.update_time_unit)
+
         self.initUI()
 
     def _time_to_position(self, t):
@@ -62,7 +68,7 @@ class TrackStack(Stack):
         layout.addWidget(self.timeline)
         layout.setContentsMargins(0, 0, 0, 0)
         self.splitter.setSizes([w.height_ratio*1000 for w in self.widgets[1:]])
-        self.overlay.raise_()
+        for w in self.overlays: w.raise_()
 
     def wheelEvent(self,event):
         if np.abs(event.angleDelta().y()) > np.abs(event.angleDelta().x()): 
@@ -120,15 +126,16 @@ class TrackStack(Stack):
 
     def update_current_range(self, new_range=None):
         if new_range is not None: self.current_range = new_range
-        for child in self.widgets+[self.overlay]: 
+        for child in self.widgets+self.overlays: 
             child.update_current_range(self.current_range)
 
     def update_current_time(self, t):
-        self.overlay.markers['cursor']['time'] = t
-        self.overlay.update()
+        for w in self.widgets + self.overlays:
+            w.update_current_time(t)
+        self.current_time_marker.set_timepoint(t)
 
     def update_selected_intervals(self):
-        self.overlay.update_selected_intervals()
+        self.selection_overlay.update_selected_intervals()
 
     def center_at_time(self, t):
         target_shift = t - self._position_to_time(self.width()/2)
