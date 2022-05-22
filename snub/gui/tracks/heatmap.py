@@ -38,7 +38,6 @@ class HeatmapImage(Track):
 
     def __init__(self, config, image, start_time, binsize, vertical_range=None, parent=None):
         super().__init__(config, parent=parent)
-        t = time.time()
         self.binsize = binsize
         self.start_time = start_time
         self.downsample_options = self.downsample_ratio**np.arange(self.downsample_powers)
@@ -52,7 +51,7 @@ class HeatmapImage(Track):
             cols = image_data.shape[1]//self.downsample_ratio
             if cols>0: image_data = image_data[:,:cols*self.downsample_ratio].reshape(image_data.shape[0],cols,-1,3).mean(2)
             self.binned_images.append(np.uint8(image_data))
-
+ 
 
     def get_current_pixmap(self):
         ### NOTE: CAN BE ABSTRACTED: SEE SIMILAR TIMELINE METHOD

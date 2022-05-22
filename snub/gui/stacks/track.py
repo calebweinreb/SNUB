@@ -2,6 +2,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import numpy as np
+import time
 
 from snub.gui.stacks import Stack
 from snub.gui.tracks import *
@@ -27,7 +28,6 @@ class TrackStack(Stack):
         self.selection_overlay = SelectionOverlay(config, self, selected_intervals)
         self.current_time_marker = LineOverlay(config, self, config['init_current_time'])
         self.overlays = [self.selection_overlay, self.current_time_marker]
-        
 
         for props in config['heatmap']:
             if props['add_traceplot']:

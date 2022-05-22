@@ -6,8 +6,9 @@ import time
 import os
 import cmapy
 import cv2
-from scipy.sparse import csc_matrix
+from scipy.sparse import load_npz
 from functools import partial
+from vidio import VideoReader
 
 from vispy.scene import SceneCanvas
 from vispy.scene.visuals import Image, Line
@@ -17,39 +18,39 @@ from snub.gui.utils import HeaderMixin, IntervalIndex, AdjustColormapDialog
 from snub.io.project import _random_color
 
 
+def _roi_contours(rois, dims, threshold_max_ratio=0.2, blur_kernel=2):
+    rois = np.array(rois.todense()).reshape(rois.shape[0],*dims)
+    contour_coordinates = []
+    for roi in rois:
+        roi_blur = cv2.GaussianBlur(roi,(11,11),blur_kernel)
+        roi_mask = roi_blur > roi_blur.max()*threshold_max_ratio
+        xy = cv2.findContours(roi_mask.astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0][0].squeeze()
+        contour_coordinates.append(np.vstack((xy,xy[:1])))
+    return contour_coordinates
+
 
 class ROIPanel(Panel, HeaderMixin):
     eps = 1e-10
 
-    def __init__(self, config, rois_path=None, data_path=None, labels_path=None, 
-                 intervals_path=None, colors={}, linewidth=3, colormap='gray', 
-                 initial_selected_rois=[], display_normalized=True, 
-                 vmin=None, vmax=None, **kwargs):
+    def __init__(self, config, rois_path=None, labels_path=None, timestamps_path=None,
+                 dimensions=None, video_paths=None, contour_colors={}, linewidth=3, 
+                 initial_selected_rois=[], vmin=0, vmax=1, colormap='viridis', **kwargs):
 
         super().__init__(config, **kwargs)
 
-        self.colormap = colormap
         self.linewidth = linewidth
+        self.colormap = colormap
         self.vmin,self.vmax = vmin,vmax
-        self.display_normalized = display_normalized
+        self.dims = dimensions
         self.current_frame_index = None
+        self.is_visible = True
 
-        self.data = np.load(os.path.join(config['project_directory'],data_path))
-        self.rois = np.load(os.path.join(config['project_directory'],rois_path))
-        self.intervals = np.load(os.path.join(config['project_directory'],intervals_path))
-        if labels_path is None: self.labels = [str(i) for i in range(self.data.shape[0])]
+        self.rois = load_npz(os.path.join(config['project_directory'],rois_path))
+        self.timestamps = np.load(os.path.join(config['project_directory'],timestamps_path))
+
+        if labels_path is None: self.labels = [str(i) for i in range(self.rois.shape[0])]
         else: self.labels = open(os.path.join(config['project_directory'],labels_path),'r').read().split('\n')
-        self.dims = self.rois.shape[1:]
-        
-        self.colors = dict(colors)
-        for label in self.labels: 
-            if not label in self.colors:
-                self.colors[label] = _random_color()
 
-        self.contour_coordinates = {l:xys for l,xys in zip(self.labels,self.roi_contours(self.rois))}
-        self.rois_sparse = csc_matrix(self.rois.reshape(self.rois.shape[0],-1))
-        self.rois_maxs = self.rois.max((1,2))+1e-6
-        
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
         self.adjust_colormap_dialog.new_range.connect(self.update_colormap_range)
 
@@ -59,35 +60,54 @@ class ROIPanel(Panel, HeaderMixin):
         self.viewbox.camera.set_range(x=(0,self.dims[1]), y=(0,self.dims[0]), margin=0)
         self.viewbox.camera.aspect=1
 
-        self.image = Image(np.zeros(self.dims,dtype=np.float32), cmap=colormap, parent=self.viewbox.scene)
-        self.contours = {l: Line(self.contour_coordinates[l], color=np.array(self.colors[l])/255, 
-            width=self.linewidth, connect='strip', parent=None) for l in self.labels}
+        self.contours = {}
+        for label,coordinates in zip(self.labels, _roi_contours(self.rois, self.dims)):
+            color = contour_colors[label] if label in contour_colors else _random_color()
+            self.contours[label] = Line(coordinates, color=np.array(color)/255, 
+                width=self.linewidth, connect='strip', parent=None)
 
-        self.viewbox.add(self.image)
+        self.vids = {name : VideoReader(
+            os.path.join(config['project_directory'],video_path)
+            ) for name,video_path in video_paths.items()}
+
+        self.dropDown = QComboBox()
+        self.dropDown.addItems(list(video_paths.keys())[::-1])
+        self.dropDown.activated.connect(self.update_image)
+
+        self.image = Image(np.zeros(self.dims, dtype=np.float32), 
+            cmap=colormap, parent=self.viewbox.scene, clim=(0,1))
         self.update_current_time(config['init_current_time'])
         self.initUI(**kwargs)
 
     def initUI(self, **kwargs):
         super().initUI(**kwargs)
+        self.layout.addWidget(self.dropDown)
         self.layout.addWidget(self.canvas.native)
-        for c in self.contours.values(): c.order=0
         self.image.order = 1
+        for c in self.contours.values(): c.order=0
+        self.dropDown.setStyleSheet("""
+            QComboBox::item { color: white; background-color : #3E3E3E;}
+            QComboBox::item:selected { background-color: #999999;} """)
+
+    def update_visible_contours(self, visible_contours):
+        for l,c in self.contours.items():
+            if l in visible_contours:
+                c.parent = self.viewbox.scene
+            else: c.parent = None
 
     def update_current_time(self, t):
-        ix = self.intervals[:,1].searchsorted(t)
-        if ix < self.intervals.shape[0] and self.intervals[ix,0] <= t and t <= self.intervals[ix,1]:
-            self.current_frame_index = ix
-        else: self.current_frame_index = None
-        self.update_image()
+        self.current_frame_index = min(self.timestamps.searchsorted(t), len(self.timestamps)-1)
+        if self.is_visible: self.update_image()
+
+    def toggle_visiblity(self, *args):
+        super().toggle_visiblity(*args)
+        if self.is_visible: self.update_image()
 
     def update_image(self):
-        if self.current_frame_index is None: x = np.zeros(self.rois.shape[0])
-        else: x = self.data[:,self.current_frame_index]
-        if self.display_normalized: x = x / self.rois_maxs
-        rois_sparse = self.rois_sparse.copy()
-        rois_sparse.data *= x[rois_sparse.indices]
-        image = rois_sparse.sum(0).base.reshape(*self.dims)
-        image = (np.clip(image, self.vmin, self.vmax)-self.vmin)/(self.vmax-self.vmin)
+        name = self.dropDown.currentText()
+        if self.current_frame_index is None: x = np.zeros(self.dims)
+        else: x = self.vids[name][self.current_frame_index][:,:,0]/255
+        image = (np.clip(x, self.vmin, self.vmax)-self.vmin)/(self.vmax-self.vmin)
         self.image.set_data(image.astype(np.float32))
         self.canvas.update()
 
@@ -97,21 +117,6 @@ class ROIPanel(Panel, HeaderMixin):
 
     def show_adjust_colormap_dialog(self):
         self.adjust_colormap_dialog.show()
-
-    def update_visible_contours(self, visible_contours):
-        for l,c in self.contours.items():
-            if l in visible_contours:
-                c.parent = self.viewbox.scene
-            else: c.parent = None
-
-    def roi_contours(self, rois, threshold_max_ratio=0.2, blur_kernel=2):
-        contour_coordinates = []
-        for roi in rois:
-            roi_blur = cv2.GaussianBlur(roi,(11,11),blur_kernel)
-            roi_mask = roi_blur > roi_blur.max()*threshold_max_ratio
-            xy = cv2.findContours(roi_mask.astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0][0].squeeze()
-            contour_coordinates.append(np.vstack((xy,xy[:1])))
-        return contour_coordinates
 
     def mouse_release(self, event):
         if event.button == 2: self.context_menu(event)
@@ -138,4 +143,5 @@ class ROIPanel(Panel, HeaderMixin):
             QMenu::item:selected, QLabel:hover, QCheckBox:hover { background-color: #999999;}
             QMenu::separator { background-color: rgb(20,20,20);} """)
         action = contextMenu.exec_(event.native.globalPos())
- 
+
+

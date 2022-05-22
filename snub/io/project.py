@@ -7,6 +7,7 @@ import warnings
 import pickle
 import colorsys
 import cv2
+import scipy.sparse
 from vidio import VideoReader
 
 def generate_intervals(start_time, binsize, num_intervals):
@@ -205,7 +206,7 @@ def list_dataviews(project_directory):
     """List of the names of each type of dataview
     """
     config = load_config(project_directory)
-    for dataview_type in ['video','scatter','mesh','heatmap','spikeplot','traceplot']:
+    for dataview_type in ['video','scatter','mesh','heatmap','spikeplot','traceplot','roiplot']:
         if dataview_type in config and len(config[dataview_type])>0:
             print(dataview_type+':')
             for props in config[dataview_type]:
@@ -747,7 +748,6 @@ def add_heatmap(
     trace_height_ratio=1,
     heatmap_height_ratio=2,
     order=0,
-    rois = None
 ):
     
     """Add a heatmap to your SNUB project.
@@ -843,13 +843,6 @@ def add_heatmap(
     order: float, default=0
         Determines the order of placement within the track-stack.
 
-    rois: ndarray, default=None
-        ROI for each row of the heatmap (in same order). Providing this input
-        will result in the creation of an ``roiplot``. This is useful for heatmaps
-        that represent calcium imaging data. The shape should be ``(N,H,W)`` where 
-        ``N`` is the number of rows in the heatmap, and ``W,H`` are the width and height
-        respectively of the window containing the rois. 
-        
     Returns
     -------
     props: dict
@@ -947,21 +940,12 @@ def add_heatmap(
         'trace_height_ratio':trace_height_ratio,
         'order': order,
         'row_colors': row_colors,
-        'bound_rois' : '' if rois is None else name
     }
 
 
     config['heatmap'].append(props)
     print('Added heatmap "{}"\n'.format(name))
     save_config(project_directory, config)
-
-    # add roi plot if rois are given
-    if rois is not None:
-        assert rois.shape[0]==data.shape[0], 'The number of ROIs must match the number of heatmap rows'
-        add_roiplot(project_directory, name, data_path, rois, 
-            time_intervals=intervals_path, labels=labels, vmin=vmin, vmax=vmax,
-            contour_colors={l:c for l,c in zip(labels,row_colors)})
-
     return props
     
     
@@ -1138,23 +1122,21 @@ def add_spikeplot(
 def add_roiplot(
     project_directory,
     name,
-    data,
     rois,
-    time_intervals=None,
-    binsize=None,
-    start_time=None,
-    sort_method=None,
+    videopaths,
+    copy_video=True,
+    heatmap_name=None,
+    fps=30,
+    start_time=0,
+    timestamps=None,
     labels=None,
     contour_colors={},
     linewidth=1,
-    colormap='gray', 
-    vmin=None, vmax=None,
     height_ratio=1,
     order=0,
 ):
     
-    """Add an ROI plot to your SNUB project. In a typical use case this method 
-    will be called by :py:func:`snub.io.create_heatmap` (rather than the user).
+    """Add an ROI plot to your SNUB project. Can be associated with a heatmap. 
     
     Parameters
     ----------
@@ -1164,60 +1146,62 @@ def add_roiplot(
     name: str
         The name of the ROI plot displayed in SNUB and used
         for editing the config file. 
-        
-    data : ndarray | str
-        2D array where rows are variables and columns are time bins.
-        Can be the array itself or the relative path to a npy file.
 
-    rois: ndarray, default=None
+    rois: ndarray
         ROI shapes as ``(N,H,W)`` array where ``N`` is the number of rows 
         in the heatmap, and ``W,H`` are the width and height respectively 
         of the window containing the rois.  
 
-    time_intervals : ndarray | str, default=None
-        Time interval (in seconds) associated with each column of the data array, 
-        given as a ``(N,2)`` array with ``[start,end]`` in each row. If 
-        ``time_intervals=None``, then values for ``binsize`` and ``start_time`` 
-        must be given. ``time_intervals`` can also be a string, in which case
-        it should be the relative path to a npy file. 
+    videopaths : dict
+        Dictionary mapping video names to video paths. All the videos are
+        assumed to share the same timestamps, and in particular to have
+        the same number of frames. The videos will be read as 8bit RGB. 
+        Other video formats, such as TIF, will have to be converted to 
+        8bit RGB before they can be added. The video should be have the 
+        same dimensions (W,H) as `rois`.
 
-    binsize: float, default=None
-        Uniform time interval (in seconds) associated with each column of the
-        data array. It is assumed that the intervals have no gaps or overlaps. 
-        If this is not the case, use the ``time_intervals`` argument. 
+    copy_video: bool, default=True
+        It is recommended that all data for a given project is contained
+        within the project directory. Leave ``copy_video=True`` if the video 
+        file  is currently outside the project directory and you wish to copy it.
+        Otherwise if ``copy_video=False``, the config will store the relative path
+        from the project directory to the video file. 
+
+    fps: float, default=30
+        The video framerate. This parameter is used in conjunction with
+        ``start_time`` to generate a timestamps file, unless an array of 
+        timestamps is directly provided. 
         
-    start_time: float, default=None
-        Start time (in seconds) of the earliest time interval in the data
-        array. ``start_time`` is used in conjunction with ``binsize`` to 
-        construct the time interval for each column of the data array.
-                
-    labels: list of str | str, default=None
-        Label for each ROI. If a list, then labels in the list will be used.
-        Can also be a string containing the relative path to a labels file. 
-        If the ROI plot is bound to a heatmap, the labels are used to establish 
-        correspondence between the ROIs and the rows of the heatmap. When no 
-        labels are given, they default to the integer order of each row. If 
-        the elements of ``labels`` are not unique, their integer order is 
-        prepended. 
+    start_time: float, default=0
+        The start time of the video (in seconds). This parameter is used 
+        in conjunction with ``fps`` to generate a timestamps file, unless an 
+        array of timestamps is directly provided. 
+        
+    timestamps: str/array-like, default=None
+        Array of timestamps in units of seconds.
+        ``timestamps`` can either be an array, or the path to .npy file, 
+        or the path to a text file with a timestamp on each line. If 
+        ``timestamps=None``, the timestamps will be created from
+        ``fps`` and ``start_time``.
+
+    labels: list of str, default=None
+        Label for each ROI. If the ROI plot is bound to a heatmap, the labels 
+        are used to establish correspondence between the ROIs and the rows of 
+        the heatmap. When no labels are given, they default to the integer order 
+        of each ROI. If the elements of ``labels`` are not unique, their integer 
+        order is prepended. 
 
     contour_colors: dict, default={}
         To assign specific colors to any of the ROIs when plotting contours, 
         use ``contour_colors[label] = (r,g,b)``, where r,g,b are ints [0-255].
+
+    heatmap_name: str, default=None
+        Heatmap containing data associated with the ROIs. Each ROI will be
+        matched with a row of the heatmap based on shared labels. Colors
+        for each ROI will also be inherited from the heatmap. 
     
     linewidth: int, default=1
         Linewidth for plotting the contours outlining each ROI
-    
-    colormap: str, default='viridis'
-        Colormap used for rendering the ROI composite values. Colormap
-        names must be compatible with vispy. 
-        
-    vmin: float, default=0
-        Floor for the colormap. If ``vmin=None``, it will be set to to the 1st percentile
-        of the data values. This parameter can be adjusted within the browser.
-    
-    vmax: float, default=None
-        Ceiling for the colormap. If ``vmax=None``, it will be set to to the 99th percentile
-        of the data values. This parameter can be adjusted within the browser.
     
     height_ratio: int, default=1
         The relative height initially allocated to this data-view in the panel-stack.
@@ -1236,57 +1220,79 @@ def add_roiplot(
     config = load_config(project_directory)
     _confirm_no_existing_dataview(config, 'roiplot', name)
     
-    # load/save data
-    if isinstance(data,str):
-        data_path = data
-        data = np.load(os.path.join(project_directory,data_path))
-    else:
-        data_path = name+'.roi_data.npy'
-        data_path_abs = os.path.join(project_directory,data_path)
-        np.save(data_path_abs, data)
-        print('Saved ROI data to '+data_path_abs)
-
     # save rois
-    rois_path = name+'.rois.npy'
+    rois_path = name+'.rois.npz'
     rois_path_abs = os.path.join(project_directory,rois_path)
-    np.save(rois_path_abs, rois)
+    scipy.sparse.save_npz(rois_path_abs, scipy.sparse.csc_matrix(rois.reshape(rois.shape[0],-1)))
     print('Saved ROIs to '+rois_path_abs)
 
-    # initialize/save time intervals
-    if isinstance(time_intervals, str):
-        intervals_path = time_intervals
-    else:
-        if time_intervals is None: 
-            if binsize is None or start_time is None:
-                raise AssertionError(
-                    'Either a `time_intervals` must be given or `binsize` and `start_time` must be specified')
-            time_intervals = generate_intervals(start_time, binsize, data.shape[1])
-            print('Initializing time intervals using start_time={} and binsize={}'.format(start_time, binsize))
+    # confirm that all videos have the same number of frames
+    videolengths = {name : len(VideoReader(videopath)) for name,videopath in videopaths.items()}
+    if not len(set(videolengths.values()))==1: 
+        raise AssertionError('\n'.join(['Not all videos have the same length']
+            +[name+': {}'.format(length) for name,length in videolengths.items()]))
+
+    # load/create timestamps and save as .npy
+    if timestamps is None:
+        video_length = list(videolengths.values())[0]
+        timestamps = np.arange(video_length)/fps + start_time
+        print('Creating timestamps array with start_time={}, fps={}, and n_frames={}'.format(start_time, fps, video_length))
         
-        intervals_path = name+'.heatmap_intervals.npy'
-        intervals_path_abs = os.path.join(project_directory,intervals_path)
-        np.save(intervals_path_abs, time_intervals)
-        print('Saved time intervals to '+intervals_path_abs)
+    elif isinstance(timestamps,str):
+        if timestamps.endswith('.npy'):
+            timestamps = np.load(timestamps)
+        elif timestamps.endswith('.txt'):
+            timestamps = np.loadtxt(timestamps)
+        else:
+            raise AssertionError('If given as a path, `timestamps` must have extension .npy or .txt')
+    
+    timestamps_path_rel = name+'.timestamps.npy'
+    timestamps_path_abs = os.path.join(project_directory, timestamps_path_rel)
+    np.save(timestamps_path_abs, timestamps)
+    print('Saved timestamps to '+timestamps_path_abs)
+
+    # optionally copy video
+    videopaths_rel = {}
+    for videoname, videopath in videopaths.items():
+        if copy_video:
+            videopath_rel = videoname+os.path.splitext(videopath)[1]
+            videopath_abs = os.path.join(project_directory, videopath_rel)
+            if not os.path.exists(videopath_abs):
+                shutil.copy(videopath, videopath_abs)
+                print('Copying video to '+videopath_abs)
+            videopaths_rel[videoname] = videopath_rel
+        else: videopaths_rel[videoname] = os.path.relpath(videopath, start=project_directory)
+            
 
     # save labels
-    if isinstance(labels,str):
-        labels_path = labels
-        labels = open(os.path.join(project_directory,labels_path)).read().split('\n')
-    else:
-        if labels is None: 
-            labels = [str(i) for i in range(data.shape[0])]
-            print('Creating labels from data row ordering')
-        elif len(labels) != data.shape[0]:
+    if labels is None: 
+        labels = [str(i) for i in range(rois.shape[0])]
+        print('Creating labels from ROI ordering')
+    elif len(labels) != rois.shape[0]:
+        raise AssertionError(
+            'The length of `labels` ({}) does not match the number of ROIs ({})'.format(len(labels), rois.shape[0]))
+    elif len(set(labels)) < len(labels):
+        print('labels are not unique: prepending integers')
+        labels = [str(i)+':'+l for i,l in enumerate(labels)]
+        
+    labels_path = name+'.roi_labels.txt'
+    labels_path_abs = os.path.join(project_directory,labels_path)
+    open(labels_path_abs,'w').write('\n'.join(labels))
+    print('Saved labels to '+labels_path_abs)
+
+
+    if heatmap_name is not None:
+        index = _get_named_dataview_index(config, 'heatmap', heatmap_name)
+        if index is None:
             raise AssertionError(
-                'The length of `labels` ({}) does not match the number of rows in the heatmap ({})'.format(len(labels), data.shape[0]))
-        elif len(set(labels)) < len(labels):
-            print('labels are not unique: prepending integers')
-            labels = [str(i)+':'+l for i,l in enumerate(labels)]
-            
-        labels_path = name+'.heatmap_labels.txt'
-        labels_path_abs = os.path.join(project_directory,labels_path)
-        open(labels_path_abs,'w').write('\n'.join(labels))
-        print('Saved labels to '+labels_path_abs)
+                'The project does not contain a heatmap with the name "{}"'.format(heatmap_name)
+            )
+        heatmap_props = config['heatmap'][index]
+        heatmap_labels = open(os.path.join(project_directory,heatmap_props['labels_path'])).read().split('\n')
+        for l,c in zip(heatmap_labels, heatmap_props['row_colors']):
+            if l in labels: contour_colors[l] = c
+        heatmap_props['bound_rois'] = name
+
 
     # choose random colors for ROIs that werent assigned a color
     contour_colors = dict(contour_colors)
@@ -1294,25 +1300,16 @@ def add_roiplot(
     print('Assigning random colors to rois',unassigned_rois)
     for k in unassigned_rois: contour_colors[k] = _random_color()
         
-    # assign vmin and vmax
-    if vmin is None: 
-        vmin = np.percentile(data.flatten(),1)
-        print('Set vmin to {}'.format(vmin))
-    if vmax is None: 
-        vmax = np.percentile(data.flatten(),99)
-        print('Set vmax to {}'.format(vmax))
 
     # add props to config
     props = {
         'name': name,
-        'data_path': data_path,
         'rois_path' : rois_path,
-        'intervals_path':intervals_path,
+        'dimensions' : rois.shape[1:],
+        'video_paths': videopaths_rel,
+        'timestamps_path': timestamps_path_rel,
         'labels_path': labels_path,
         'contour_colors':contour_colors,
-        'colormap':colormap,
-        'vmin':vmin,
-        'vmax':vmax,
         'linewidth':linewidth,
         'height_ratio': height_ratio,
         'order': order
@@ -1323,8 +1320,6 @@ def add_roiplot(
     return props
 
 
-from snub.io.project import load_config, _confirm_no_existing_dataview, generate_intervals, save_config
-import os 
 
 def add_pose3D(
     project_directory,

@@ -62,6 +62,7 @@ class TracePlot(Track):
         self.colors = dict(colors)
         for label in self.data: 
             if not label in self.colors:
+                print('random!')
                 self.colors[label] = _random_color()
         
         self.clearButton = QPushButton("Clear")

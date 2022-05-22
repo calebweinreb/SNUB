@@ -75,4 +75,56 @@ def transform_azure_ir_stream(inpath, outpath=None, num_frames=None):
             img = azure_ir_transform(img)
             writer.append_data(img)
 
+
+def detrend_video(
+    videopath_in, videopath_out, window_length=75, window_step=5, 
+    pctl=20, clipping_bounds=(-20,45), quality=6):
+    """
+    Detrend a video by subtracting a pixel-wise running percentile.  
+    
+    Parameters
+    ----------
+    videopath_in : str 
+        Path to the input video
+
+    videopath_out : str
+        Path to write the detrended video
         
+    window_length: int, default=75
+        Window over which to calculate the running percentile. 
+        
+    window_step: int, default=5
+        Downsampling factor for computing running percentile. For frame `i`, the
+        frames used to compute the percetile will be 
+        `[i, i-window_step, i-2*window_step,...,i-window_length]`
+
+    pctl: int, default=20
+        Percentile used to calculate background
+
+    clipping_bounds: tuple(float,float), default=(-20,45)
+        Clipping bounds for normalizing detrended video. The interval defined
+        by `clip` is rescaled to [0,255] in the final video. 
+
+    quality: int, defaut=6
+        Quality of output video (passed to imageio writer). 
+
+    """    
+    
+    reader = imageio.get_reader(videopath_in)
+    metadata = reader.get_meta_data()
+    buffer = [np.zeros(metadata['size'][::-1]) for i in range(0,window_length,window_step)]
+
+    writer = imageio.get_writer(
+        videopath_out, fps=metadata['fps'], quality=quality, 
+        macro_block_size=1, pixelformat=metadata['pix_fmt'])
+    
+    for im in tqdm.tqdm(reader, total=reader.count_frames()):
+        x = im[:,:,0].astype(float)
+        buffer.insert(0,x)
+        buffer = buffer[:window_length]
+        background = np.percentile(buffer[::window_step],pctl,axis=0)
+        x = np.clip(x - background, *clipping_bounds)
+        x = (x - clipping_bounds[0])/(clipping_bounds[1]-clipping_bounds[0])*255
+        writer.append_data(np.repeat(x[:,:,None],3,axis=2).astype(np.uint8))
+        
+    writer.close() 

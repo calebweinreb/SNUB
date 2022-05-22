@@ -36,6 +36,8 @@ class VideoPanel(Panel, HeaderMixin):
         super().__init__(config, **kwargs)
         self.video_frame = VideoFrame(os.path.join(config['project_directory'],video_path))
         self.timestamps = np.load(os.path.join(config['project_directory'],timestamps_path))
+        self.current_frame_index = None
+        self.is_visible = True          
         self.update_current_time(config['init_current_time'])
         self.initUI(**kwargs)
 
@@ -46,10 +48,12 @@ class VideoPanel(Panel, HeaderMixin):
         self.video_frame.update()
 
     def update_current_time(self, t):
-        i = min(self.timestamps.searchsorted(t), len(self.timestamps)-1)
-        self.video_frame.show_frame(i)
+        self.current_frame_index = min(self.timestamps.searchsorted(t), len(self.timestamps)-1)
+        if self.is_visible: self.video_frame.show_frame(self.current_frame_index)
 
-
+    def toggle_visiblity(self, *args):
+        super().toggle_visiblity(*args)
+        if self.is_visible: self.video_frame.show_frame(self.current_frame_index)
 
 class VideoFrame(QGraphicsView):
     def __init__(self, video_path):
