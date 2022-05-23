@@ -1,5 +1,6 @@
 import numpy as np
 import imageio
+import scipy
 import tqdm
 import os
 
@@ -77,7 +78,7 @@ def transform_azure_ir_stream(inpath, outpath=None, num_frames=None):
 
 
 def detrend_video(
-    videopath_in, videopath_out, window_length=75, window_step=5, 
+    videopath_in, videopath_out, window_length=150, window_step=10, 
     pctl=20, clipping_bounds=(-20,45), quality=6):
     """
     Detrend a video by subtracting a pixel-wise running percentile.  
@@ -128,3 +129,37 @@ def detrend_video(
         writer.append_data(np.repeat(x[:,:,None],3,axis=2).astype(np.uint8))
         
     writer.close() 
+
+
+
+def fast_prct_filt(input_data, level=8, frames_window=3000):
+    """
+    Fast approximate percentage filtering
+    Borrowed from CaImAn
+    """
+    data = np.atleast_2d(input_data).copy()
+    T = np.shape(data)[-1]
+    downsampfact = frames_window
+
+    elm_missing = int(np.ceil(T * 1.0 / downsampfact)
+                      * downsampfact - T)
+    padbefore = int(np.floor(elm_missing / 2.))
+    padafter = int(np.ceil(elm_missing / 2.))
+    tr_tmp = np.pad(data.T, ((padbefore, padafter), (0, 0)), mode='reflect')
+    numFramesNew, num_traces = np.shape(tr_tmp)
+    #% compute baseline quickly
+
+    tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew / downsampfact),
+                                num_traces), order='F')
+
+    tr_BL = np.percentile(tr_BL, level, axis=0)
+    tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32),
+                               [downsampfact, 1], order=3, mode='nearest',
+                               cval=0.0, prefilter=True)
+
+    if padafter == 0:
+        data -= tr_BL.T
+    else:
+        data -= tr_BL[padbefore:-padafter].T
+
+    return data.squeeze()
