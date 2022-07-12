@@ -137,6 +137,7 @@ def fast_prct_filt(input_data, level=8, frames_window=3000):
     Fast approximate percentage filtering
     Borrowed from CaImAn
     """
+    from scipy.ndimage import zoom
     data = np.atleast_2d(input_data).copy()
     T = np.shape(data)[-1]
     downsampfact = frames_window
@@ -153,7 +154,7 @@ def fast_prct_filt(input_data, level=8, frames_window=3000):
                                 num_traces), order='F')
 
     tr_BL = np.percentile(tr_BL, level, axis=0)
-    tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32),
+    tr_BL = zoom(np.array(tr_BL, dtype=np.float32),
                                [downsampfact, 1], order=3, mode='nearest',
                                cval=0.0, prefilter=True)
 

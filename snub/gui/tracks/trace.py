@@ -58,12 +58,11 @@ class TracePlot(Track):
         if initial_visible_traces is not None: self.visible_traces = set(initial_visible_traces)
         elif len(self.data)>0: self.visible_traces = set([np.random.choice(list(self.data.keys()))])
         else: self.visible_traces = set([])
-        
+
 
         self.colors = dict(colors)
         for label in self.data: 
             if not label in self.colors:
-                print('random!')
                 self.colors[label] = _random_color()
         
         self.clearButton = QPushButton("Clear")

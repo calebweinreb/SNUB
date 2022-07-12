@@ -10,6 +10,7 @@ from numba import njit, prange
 
 from snub.gui.tracks import Track, TracePlot, TrackGroup
 from snub.gui.utils import AdjustColormapDialog
+from snub.io.project import _random_color
 
 
 def cvImage_to_Qimage(cvImage):
@@ -141,6 +142,7 @@ class HeatmapLabels(QWidget):
     def mousePressEvent(self, event):
         label = self.label_at_position(event.x(), event.y())
         if label is not None: self.display_trace_signal.emit(label)
+        else: event.ignore()
 
     def paintEvent(self, event):
         self.resize(self.parent().size())
@@ -178,6 +180,9 @@ class Heatmap(Track):
 
         if labels_path is None: self.labels = [str(i) for i in range(self.data.shape[0])]
         else: self.labels = open(os.path.join(config['project_directory'],labels_path),'r').read().split('\n')
+
+        if row_colors is None: row_colors = [_random_color() for i in range(self.data.shape[0])]
+        self.row_colors = row_colors
 
         if row_order_path is None: self.row_order = np.arange(self.data.shape[0])
         else: self.row_order = np.load(os.path.join(config['project_directory'],row_order_path))
@@ -304,7 +309,9 @@ class HeadedHeatmap(TrackGroup):
 
 class HeatmapTraceGroup(TrackGroup):
     def __init__(self, config, selected_intervals, trace_height_ratio=1, bound_rois='',
-                 heatmap_height_ratio=2, height_ratio=1, row_colors=[], **kwargs):
+                 heatmap_height_ratio=2, height_ratio=1, row_colors=None, **kwargs):
+
+
 
         heatmap = Heatmap(
             config, selected_intervals, row_colors=row_colors, 
@@ -313,7 +320,7 @@ class HeatmapTraceGroup(TrackGroup):
         ts = heatmap.intervals.mean(1)
         trace = TracePlot(config, height_ratio=trace_height_ratio, bound_rois=bound_rois,
             data={l:np.vstack((ts,d)).T for l,d in zip(heatmap.labels, heatmap.data)}, 
-            colors={l:c for l,c in zip(heatmap.labels, row_colors)}, **kwargs)
+            colors={l:c for l,c in zip(heatmap.labels, heatmap.row_colors)}, **kwargs)
 
         heatmap.display_trace_signal.connect(trace.show_trace)
         heatmap.heatmap_labels.display_trace_signal.connect(trace.show_trace)
