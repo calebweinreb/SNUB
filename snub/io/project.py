@@ -911,7 +911,7 @@ def add_heatmap(
     except: raise AssertionError(
         '""{}"" is not a valid colormap. See https://matplotlib.org/stable/gallery/color/colormap_reference.html for a list of options'.format(colormap)) 
     if vmin is None: 
-        vmin = np.max(data)
+        vmin = np.min(data)
         print('Set vmin to {}'.format(vmin))
     if vmax is None: 
         vmax = np.max(data)
