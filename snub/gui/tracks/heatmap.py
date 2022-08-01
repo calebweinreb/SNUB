@@ -281,6 +281,7 @@ class Heatmap(Track):
 
     def get_image_data(self):
         data_remapped = map_heatmap_by_intervals(self.data, self.intervals, self.min_step)
+        print(self.data.shape, self.vmin, self.vmax)
         data_scaled = np.clip((data_remapped[self.row_order]-self.vmin)/(self.vmax-self.vmin),0,1)*255
         image_data = cmapy.cmap(self.colormap).squeeze()[:,::-1][data_scaled.astype(np.uint8)]
         return image_data

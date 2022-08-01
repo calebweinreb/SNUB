@@ -911,10 +911,10 @@ def add_heatmap(
     except: raise AssertionError(
         '""{}"" is not a valid colormap. See https://matplotlib.org/stable/gallery/color/colormap_reference.html for a list of options'.format(colormap)) 
     if vmin is None: 
-        vmin = np.percentile(data.flatten(),1)
+        vmin = np.max(data)
         print('Set vmin to {}'.format(vmin))
     if vmax is None: 
-        vmax = np.percentile(data.flatten(),99)
+        vmax = np.max(data)
         print('Set vmax to {}'.format(vmax))
 
     # generare random colors for traceplot or roiplot
