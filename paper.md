@@ -45,10 +45,6 @@ viewer. The following code, for example, creates a project with paired
 electrophysiology and video data.
 
 ```
-import snub.io
-
-project_directory = 'path/to/new/project'
-
 snub.io.create_project(project_directory, duration=1800)
 snub.io.add_video(project_directory, 'path/to/my_video.avi', name='IR_camera')
 snub.io.add_splikeplot(project_directory, 'my_ephys_data', spike_times, spike_labels)
