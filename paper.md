@@ -24,11 +24,11 @@ bibliography: paper.bib
 
 SNUB is a tool for exploring time-series data, such as neural 
 recordings, behavioral videos, temperature, movement or other sensor signals, 
-and any higher-level annotations derived from such data. The interface is 
-divided into windows that each show a different data stream and all synchonize 
-to a common timeline. The linked data views allow users to quickly inspect 
-the relationships between different phenomena, such as the behaviors that 
-occur during a particular pattern of neural activity (\autoref{fig:screenshot}). 
+and higher-level annotations derived from such data. The interface is 
+divided into synchronized windows that each show a different data stream. 
+The linked data views allow users to quickly inspect the relationships between
+experimental phenomena, such as the behaviors that occur during a particular 
+pattern of neural activity (\autoref{fig:screenshot}). 
 
 ![Screenshot from SNUB.\label{fig:screenshot}](docs/media/screenshot.png)
 
@@ -51,7 +51,7 @@ snub.io.add_splikeplot(project_directory, 'my_ephys_data', spike_times, spike_la
 ```
 
 SNUB is a flexible general-purpose tool that complements more specialized 
-packages such as rastermap [@rastermap] or Bento [@bento]. The rastermap user 
+packages such as rastermap [@rastermap] and Bento [@bento]. The rastermap
 interface, for example, is hard-coded for the display of neural activity 
 rasters, ROIs and 2D embeddings of neural activity. Bento is hard-coded for 
 the display of neural activity rasters, behavioral videos and behavioral 
@@ -68,6 +68,8 @@ loading is enabled by vidio [@vidio].
 
 We are grateful to Mohammed Osman for initial contributions to the 3D keypoint
 visualization tool. CW is a Fellow of The Jane Coffin Childs Memorial Fund for 
-Medical Research. SRD ... 
+Medical Research. SRD is supported by NIH grants U19NS113201, RF1AG073625, 
+R01NS114020, the Brain Research Foundation, and the Simons Collaboration on 
+the Global Brain.
 
 # References
