@@ -30,7 +30,7 @@ def azure_ir_transform(input_image):
     return transformed_image
 
 
-def transform_azure_ir_stream(inpath, outpath=None, num_frames=None):
+def transform_azure_ir_stream(inpath, outpath=None, num_frames=None, quality=7):
     """
     Convert a 16bit monochrome video to an 8bit mp4 video that 
     can be viewed within SNUB. Each frame is transformed using 
@@ -51,6 +51,9 @@ def transform_azure_ir_stream(inpath, outpath=None, num_frames=None):
         
     num_frames: int, default=None
         Number of frames to convert. By default the full video is converted.
+
+    quality: int, default=7
+        Quality of output video (passed to imageio writer).
     """
     if not os.path.exists(inpath): 
         raise AssertionError('The video {} does not exist'.format(inpath))
@@ -70,7 +73,7 @@ def transform_azure_ir_stream(inpath, outpath=None, num_frames=None):
         raise AssertionError('`num_frames={} but there are only {} frames in the input video'.format(num_frames, num_frames_in_video))
 
     print('Saving transformed video to '+outpath)
-    with imageio.get_writer(outpath, fps=fps) as writer:
+    with imageio.get_writer(outpath, fps=fps, quality=quality, pixelformat='yuv420p') as writer:
         for i in tqdm.trange(num_frames):
             img = reader.get_data(i)
             img = azure_ir_transform(img)
