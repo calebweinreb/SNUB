@@ -64,7 +64,7 @@ class ProjectTab(QWidget):
         self.current_time = config["init_current_time"]
         self.play_speed = config["initial_playspeed"]
         self.animation_step = 1 / config["animation_fps"]
-        self.center_playhead = config["center_playhead"]
+        self.track_playhead = config["track_playhead"]
 
         # keep track of current selection
         self.selected_intervals = IntervalIndex(min_step=config["min_step"])
@@ -80,8 +80,8 @@ class ProjectTab(QWidget):
         self.play_button = QPushButton()
         self.speed_slider = QSlider(Qt.Horizontal)
         self.speed_label = QLabel()
-        self.center_playhead_checkbox = CheckBox(self.center_playhead)
-        self.center_playhead_checkbox.state_change.connect(self.update_center_playhead)
+        self.track_playhead_checkbox = CheckBox(self.track_playhead)
+        self.track_playhead_checkbox.state_change.connect(self.update_track_playhead)
 
         # connect signals and slots
         self.speed_slider.valueChanged.connect(self.change_play_speed)
@@ -143,7 +143,7 @@ class ProjectTab(QWidget):
         buttons.addWidget(self.speed_slider)
         buttons.addWidget(self.speed_label)
         buttons.addSpacing(20)
-        buttons.addWidget(self.center_playhead_checkbox)
+        buttons.addWidget(self.track_playhead_checkbox)
         label = QLabel("Track Playhead")
         label.setFixedHeight(25)
         buttons.addWidget(label)
@@ -154,9 +154,9 @@ class ProjectTab(QWidget):
         layout.addLayout(buttons)
         self.change_layout_mode(self.layout_mode)
 
-    def update_center_playhead(self, checkstate):
-        self.center_playhead = checkstate
-        if self.center_playhead:
+    def update_track_playhead(self, checkstate):
+        self.track_playhead = checkstate
+        if self.track_playhead:
             self.trackStack.center_at_time(self.current_time)
 
     def validate_and_autofill_config(self, config):
@@ -180,7 +180,7 @@ class ProjectTab(QWidget):
             "min_range": 0.01,
             "initial_playspeed": 1,
             "animation_fps": 30,
-            "center_playhead": False,
+            "track_playhead": True,
             "panels_size_ratio": 1,
             "tracks_size_ratio": 2,
             "spikeplot": [],
@@ -273,8 +273,12 @@ class ProjectTab(QWidget):
         if new_time >= self.bounds[1]:
             new_time = self.bounds[0]
         self.update_current_time(new_time)
-        if self.center_playhead:
-            self.trackStack.center_at_time(self.current_time)
+        if self.track_playhead:
+            if (
+                self.current_time > self.trackStack.current_range[1]
+                or self.current_time < self.trackStack.current_range[0]
+            ):
+                self.trackStack.center_at_time(self.current_time)
 
     def toggle_play_state(self):
         if self.playing:

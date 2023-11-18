@@ -70,18 +70,6 @@ class Pose3DPanel(Panel, HeaderMixin):
         self.link_width = link_width
         self.scaling = scaling
 
-        # self.canvas = SceneCanvas(self, keys='interactive', show=True)
-        # self.canvas.events.mouse_move.connect(self.mouse_move)
-        # self.canvas.events.mouse_release.connect(self.mouse_release)
-        # self.viewbox = self.canvas.central_widget.add_grid().add_view(row=0, col=0, camera='panzoom')
-        # self.viewbox.camera.aspect=1
-        # self.scatter = Markers(antialias=0)
-        # self.scatter_selected = Markers(antialias=0)
-        # self.current_node_marker = Markers(antialias=0)
-        # self.rect = Rectangle(border_color=(1,1,1), color=(1,1,1,.2), center=(0,0), width=1, height=1)
-        # self.viewbox.add(self.scatter)
-        # self.initUI(name=name, xlim=xlim, ylim=ylim, )
-
         self.canvas = SceneCanvas(keys="interactive", show=True)
         self.view = self.canvas.central_widget.add_view(camera="arcball")
         self.view.camera.scale_factor = 500
@@ -176,7 +164,8 @@ class Pose3DPanel(Panel, HeaderMixin):
             self.current_frame_index = ix
         else:
             self.current_frame_index = None
-        self.update_plot()
+        if self.is_visible:
+            self.update_plot()
 
     def update_plot(self):
         if self.current_frame_index is not None:
@@ -189,3 +178,8 @@ class Pose3DPanel(Panel, HeaderMixin):
                 pos=self.data[self.current_frame_index, self.link_indexes.flat],
                 color=self.link_colors,
             )
+
+    def toggle_visiblity(self, *args):
+        super().toggle_visiblity(*args)
+        if self.is_visible:
+            self.update_plot()

@@ -52,7 +52,7 @@ def create_project(
     min_range=0.25,
     init_current_time=None,
     initial_playspeed=1,
-    center_playhead=False,
+    track_playhead=True,
 ):
     """Set up a new SNUB project by creating a directory and config.json file.
 
@@ -121,7 +121,7 @@ def create_project(
         Initial setting for playback speed. The playback speed can
         be changed at any time within the browser using a slider.
 
-    center_playhead: bool, default=False
+    track_playhead: bool, default=True
         Toggles the center-playhead setting. When this setting is
         True, the playhead stays fixed and the data scrolls by.
         Otherwise currently visible range rests while the playhead
@@ -180,7 +180,7 @@ def create_project(
         "min_range": min_range,
         "init_current_time": init_current_time,
         "initial_playspeed": initial_playspeed,
-        "center_playhead": center_playhead,
+        "track_playhead": track_playhead,
         "video": [],
         "scatter": [],
         "pose3D": [],
@@ -394,6 +394,7 @@ def add_video(
     timestamps=None,
     size_ratio=1,
     order=0,
+    initial_visibility=True,
 ):
     """Add a video to your SNUB project.
 
@@ -445,6 +446,10 @@ def add_video(
         Determines the order of placement within the panel-stack.
         Panels are arranged top-to-bottom (in column mode) or
         left-to-right (row mode) by ascending rank of the ``order`` property.
+
+    initial_visibility: bool, default=True
+        Whether the video is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
 
     Returns
     -------
@@ -503,6 +508,7 @@ def add_video(
         "timestamps_path": timestamps_path_rel,
         "size_ratio": size_ratio,
         "order": order,
+        "initial_visibility": initial_visibility,
     }
     config["video"].append(props)
     print('Added video plot "{}"\n'.format(name))
@@ -519,6 +525,7 @@ def add_traceplot(
     bgcolor=(0, 0, 0),
     height_ratio=1,
     order=0,
+    initial_visibility=True,
 ):
     """Add a traceplot to your SNUB project.
 
@@ -554,6 +561,10 @@ def add_traceplot(
     order: float, default=0
         Determines the order of placement within the track-stack.
 
+    initial_visibility: bool, default=True
+        Whether the trace plot is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
+
     Returns
     -------
     props: dict
@@ -586,6 +597,7 @@ def add_traceplot(
         "trace_colors": trace_colors,
         "height_ratio": height_ratio,
         "order": order,
+        "initial_visibility": initial_visibility,
     }
 
     config["traceplot"].append(props)
@@ -616,6 +628,7 @@ def add_scatter(
     selection_intersection_threshold=0.5,
     size_ratio=1,
     order=0,
+    initial_visibility=True,
 ):
     """Add a scatter plot to your SNUB project.
 
@@ -708,6 +721,10 @@ def add_scatter(
         Panels are arranged top-to-bottom (in column mode) or
         left-to-right (row mode) by ascending rank of the ``order`` property.
 
+    initial_visibility: bool, default=True
+        Whether the scatter plot is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
+
     Returns
     -------
     props: dict
@@ -771,6 +788,7 @@ def add_scatter(
         "selection_intersection_threshold": selection_intersection_threshold,
         "size_ratio": size_ratio,
         "order": order,
+        "initial_visibility": initial_visibility,
     }
     if xlim is not None:
         props["xlim"] = xlim
@@ -804,12 +822,12 @@ def add_heatmap(
     trace_height_ratio=1,
     heatmap_height_ratio=2,
     order=0,
+    initial_visibility=True,
 ):
     """Add a heatmap to your SNUB project.
     If plotting neural data, it is helpful to sort the rows of the heatmap
     so that correlated neurons are clustered together (use the ``sort_method``
     argument; see :py:func:`snub.io.sort` for options).
-
 
     Parameters
     ----------
@@ -897,6 +915,10 @@ def add_heatmap(
 
     order: float, default=0
         Determines the order of placement within the track-stack.
+
+    initial_visibility: bool, default=True
+        Whether the heatmap is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
 
     Returns
     -------
@@ -1012,6 +1034,7 @@ def add_heatmap(
         "trace_height_ratio": trace_height_ratio,
         "order": order,
         "row_colors": row_colors,
+        "initial_visibility": initial_visibility,
     }
 
     config["heatmap"].append(props)
@@ -1042,6 +1065,7 @@ def add_spikeplot(
     trace_height_ratio=1,
     heatmap_height_ratio=2,
     order=0,
+    initial_visibility=True,
 ):
     """Add a spike plot to your SNUB project.
     By default, spike plots convert to heatmaps when sufficiently zoomed out.
@@ -1082,6 +1106,10 @@ def add_spikeplot(
 
     window_step: float, default=0.02
         Step-size (in seconds) between each window used to calculate firing rates
+
+    initial_visibility: bool, default=True
+        Whether the spike plot is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
 
     Returns
     -------
@@ -1198,6 +1226,7 @@ def add_spikeplot(
         "heatmap_height_ratio": heatmap_height_ratio,
         "trace_height_ratio": trace_height_ratio,
         "order": order,
+        "initial_visibility": initial_visibility,
     }
     config["spikeplot"].append(props)
     print('Added spike plot "{}"\n'.format(name))
@@ -1220,6 +1249,7 @@ def add_roiplot(
     linewidth=1,
     height_ratio=1,
     order=0,
+    initial_visibility=True,
 ):
     """Add an ROI plot to your SNUB project. Can be associated with a heatmap.
 
@@ -1294,6 +1324,10 @@ def add_roiplot(
 
     order: float, default=0
         Determines the order of placement within the panel-stack.
+
+    initial_visibility: bool, default=True
+        Whether the ROI plot is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
 
     Returns
     -------
@@ -1425,6 +1459,7 @@ def add_roiplot(
         "linewidth": linewidth,
         "height_ratio": height_ratio,
         "order": order,
+        "initial_visibility": initial_visibility,
     }
     config["roiplot"].append(props)
     print('Added roiplot "{}"\n'.format(name))
@@ -1451,6 +1486,7 @@ def add_pose3D(
     link_width=2,
     height_ratio=1,
     order=0,
+    initial_visibility=True,
 ):
     """Add a 3D pose plot to your SNUB project.
 
@@ -1526,6 +1562,10 @@ def add_pose3D(
 
     order: float, default=0
         Determines the order of placement within the panel-stack.
+
+    initial_visibility: bool, default=True
+        Whether the 3D pose viewer is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
 
     Returns
     -------
@@ -1655,6 +1695,7 @@ def add_pose3D(
         "joint_size": joint_size,
         "link_width": link_width,
         "order": order,
+        "initial_visibility": initial_visibility,
     }
     config["pose3D"].append(props)
     print('Added 3D pose viewer "{}"\n'.format(name))

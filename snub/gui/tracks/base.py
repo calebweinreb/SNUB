@@ -3,22 +3,21 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import numpy as np
 import os
+import time
 from functools import partial
 from snub.gui.utils import HeaderMixin
 
 
-
 def time_to_position(current_range, width, t):
-    pos_rel = (t - current_range[0]) / (current_range[1]-current_range[0])
+    pos_rel = (t - current_range[0]) / (current_range[1] - current_range[0])
     return pos_rel * width
 
+
 def position_to_time(current_range, width, p):
-    return p/width * (current_range[1]-current_range[0]) + current_range[0]
+    return p / width * (current_range[1] - current_range[0]) + current_range[0]
 
 
-
-
-'''
+"""
 class AddVlineDialog(QDialog):
     #new_range = pyqtSignal(float,float)
     def __init__(self, parent, position):
@@ -48,32 +47,31 @@ class AddVlineDialog(QDialog):
             self.new_range.emit(vmin, vmax)
             self.hide()
         except: pass
-'''
-
-
+"""
 
 
 class Track(QWidget):
     def __init__(self, config, parent=None, height_ratio=1, order=0, **kwargs):
         super().__init__(parent=parent)
-        self.layout_mode = config['layout_mode']
-        self.current_range = config['bounds']
-        self.current_time = config['init_current_time']
-        self.layout_mode = config['layout_mode']
-        self.min_step = config['min_step']
+        self.layout_mode = config["layout_mode"]
+        self.current_range = config["bounds"]
+        self.current_time = config["init_current_time"]
+        self.layout_mode = config["layout_mode"]
+        self.min_step = config["min_step"]
         self.show_min_step = False
         self.show_subsecond = False
         self.height_ratio = height_ratio
         self.order = order
-
 
     def _time_to_position(self, t):
         return time_to_position(self.current_range, self.width(), t)
 
     def update_current_range(self, current_range):
         self.current_range = current_range
-        if current_range[1]-current_range[0] < 10: self.show_subsecond = True
-        else: self.show_subsecond = False
+        if current_range[1] - current_range[0] < 10:
+            self.show_subsecond = True
+        else:
+            self.show_subsecond = False
         self.update()
 
     def update_current_time(self, t):
@@ -84,15 +82,15 @@ class Track(QWidget):
         self.update()
 
     def get_time_label(self, t):
-        if self.show_min_step: 
-            return repr(int(np.around(t/self.min_step)))
-        else: 
-            mm = str(int(t/60))
+        if self.show_min_step:
+            return repr(int(np.around(t / self.min_step)))
+        else:
+            mm = str(int(t / 60))
             if self.show_subsecond:
-                ss = str(round(t%60,3))
+                ss = str(round(t % 60, 3))
             else:
-                ss = str(int(t%60))
-            return mm.zfill(2)+':'+ss.zfill(2)
+                ss = str(int(t % 60))
+            return mm.zfill(2) + ":" + ss.zfill(2)
 
     def change_layout_mode(self, layout_mode):
         self.layout_mode = layout_mode
@@ -103,8 +101,46 @@ class Track(QWidget):
 
 class Timeline(Track):
     toggle_units_signal = pyqtSignal(bool)
-    TIMESTEP_SPACING_OPTIONS = np.array([1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 1000000])
-    SECOND_SPACING_OPTIONS = np.array([0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1800, 3600])
+    TIMESTEP_SPACING_OPTIONS = np.array(
+        [
+            1,
+            5,
+            10,
+            25,
+            50,
+            100,
+            250,
+            500,
+            1000,
+            2500,
+            5000,
+            10000,
+            25000,
+            50000,
+            1000000,
+        ]
+    )
+    SECOND_SPACING_OPTIONS = np.array(
+        [
+            0.001,
+            0.005,
+            0.01,
+            0.05,
+            0.1,
+            0.5,
+            1,
+            5,
+            10,
+            30,
+            60,
+            120,
+            300,
+            600,
+            900,
+            1800,
+            3600,
+        ]
+    )
     MAX_TICKS_VISIBLE = 20
     HEIGHT = 45
     TICK_HEIGHT = 10
@@ -114,19 +150,21 @@ class Timeline(Track):
 
     def __init__(self, config):
         super().__init__(config)
-        self.timestep_spacing_options = config['min_step'] * self.TIMESTEP_SPACING_OPTIONS
-        self.min_steps_button = QRadioButton('timesteps')
-        self.minutes_seconds_button = QRadioButton('mm:ss')
+        self.timestep_spacing_options = (
+            config["min_step"] * self.TIMESTEP_SPACING_OPTIONS
+        )
+        self.min_steps_button = QRadioButton("timesteps")
+        self.minutes_seconds_button = QRadioButton("mm:ss")
         self.minutes_seconds_button.setChecked(True)
         self.min_steps_button.toggled.connect(self.toggle_unit)
         self.minutes_seconds_button.toggled.connect(self.toggle_unit)
         self.initUI()
 
     def initUI(self):
-        self.resize(self.width(),self.HEIGHT)
+        self.resize(self.width(), self.HEIGHT)
         # Set Background
         pal = QPalette()
-        pal.setColor(QPalette.Background, QColor(20,20,20))
+        pal.setColor(QPalette.Background, QColor(20, 20, 20))
         self.setPalette(pal)
         self.setAutoFillBackground(True)
         self.setFixedHeight(self.HEIGHT)
@@ -157,28 +195,38 @@ class Timeline(Track):
         button_strip.addWidget(self.minutes_seconds_button)
         button_strip.addStretch(0)
         button_strip.setSpacing(10)
-        button_strip.setContentsMargins(5,0,5,0)
+        button_strip.setContentsMargins(5, 0, 5, 0)
         vbox = QVBoxLayout(self)
         vbox.addStretch(0)
         vbox.addLayout(button_strip)
-        vbox.setContentsMargins(0,0,0,5)
+        vbox.setContentsMargins(0, 0, 0, 5)
 
     def toggle_unit(self):
-        if self.minutes_seconds_button.isChecked(): self.show_min_step = False
-        if self.min_steps_button.isChecked(): self.show_min_step = True
+        if self.minutes_seconds_button.isChecked():
+            self.show_min_step = False
+        if self.min_steps_button.isChecked():
+            self.show_min_step = True
         self.toggle_units_signal.emit(self.show_min_step)
         self.update()
 
     def get_visible_tick_positions(self):
-        if self.show_min_step: spacing_options = self.timestep_spacing_options
-        else: spacing_options = self.SECOND_SPACING_OPTIONS
-        visible_range = self.current_range[1]-self.current_range[0]
-        best_spacing = np.min(np.nonzero(visible_range/spacing_options < self.MAX_TICKS_VISIBLE)[0])
+        if self.show_min_step:
+            spacing_options = self.timestep_spacing_options
+        else:
+            spacing_options = self.SECOND_SPACING_OPTIONS
+        visible_range = self.current_range[1] - self.current_range[0]
+        best_spacing = np.min(
+            np.nonzero(visible_range / spacing_options < self.MAX_TICKS_VISIBLE)[0]
+        )
         tick_interval = spacing_options[best_spacing]
-        first_tick = self.current_range[0] - self.current_range[0]%tick_interval + tick_interval
-        tick_times = np.arange(first_tick,self.current_range[1],tick_interval)
+        first_tick = (
+            self.current_range[0]
+            - self.current_range[0] % tick_interval
+            + tick_interval
+        )
+        tick_times = np.arange(first_tick, self.current_range[1], tick_interval)
         tick_positions = self._time_to_position(tick_times)
-        return tick_times,tick_positions
+        return tick_times, tick_positions
 
     def paintEvent(self, event):
         qp = QPainter()
@@ -186,16 +234,18 @@ class Timeline(Track):
         qp.setPen(QColor(150, 150, 150))
         qp.setFont(QFont("Helvetica [Cronyx]", 10))
         qp.setRenderHint(QPainter.Antialiasing)
-        tick_times,tick_positions = self.get_visible_tick_positions()
-        for t,p in zip(tick_times,tick_positions): 
+        tick_times, tick_positions = self.get_visible_tick_positions()
+        for t, p in zip(tick_times, tick_positions):
             label = self.get_time_label(t)
-            qp.drawLine(p,0,p,self.TICK_HEIGHT)
+            qp.drawLine(p, 0, p, self.TICK_HEIGHT)
             qp.drawText(
-                p-self.TICK_LABEL_WIDTH//2,
-                self.TICK_HEIGHT+self.TICK_LABEL_MARGIN,
+                p - self.TICK_LABEL_WIDTH // 2,
+                self.TICK_HEIGHT + self.TICK_LABEL_MARGIN,
                 self.TICK_LABEL_WIDTH,
                 self.TICK_LABEL_HEIGHT,
-                Qt.AlignHCenter, label)
+                Qt.AlignHCenter,
+                label,
+            )
         qp.end()
 
 
@@ -204,7 +254,15 @@ class LineOverlay(Track):
     FONTSIZE = 12
     FONT = "Helvetica [Cronyx]"
 
-    def __init__(self, config, parent, timepoint, color=(250,250,250), label=None, show_time=True):
+    def __init__(
+        self,
+        config,
+        parent,
+        timepoint,
+        color=(250, 250, 250),
+        label=None,
+        show_time=True,
+    ):
         Track.__init__(self, config, parent=parent)
         self.color = color
         self.label = label
@@ -214,7 +272,7 @@ class LineOverlay(Track):
 
     def set_timepoint(self, t):
         self.timepoint = t
-        self.update()
+        self.repaint()
 
     def paintEvent(self, event):
         self.resize(self.parent().size())
@@ -223,22 +281,34 @@ class LineOverlay(Track):
         qp.setRenderHint(QPainter.Antialiasing)
         r = self._time_to_position(self.timepoint)
         if r > 0 and r < self.width():
-            qp.drawLine(r,0,r,self.parent().height())
+            qp.drawLine(r, 0, r, self.parent().height())
             font = QFont(self.FONT, self.FONTSIZE)
             fm = QFontMetrics(font)
             qp.setFont(font)
 
             if self.show_time:
                 text = self.get_time_label(self.timepoint)
-                w,h = fm.width(text), fm.height()
-                qp.drawText(r+self.MARGIN, self.height()-h-self.MARGIN, w, h, Qt.AlignLeft, text)
+                w, h = fm.width(text), fm.height()
+                qp.drawText(
+                    r + self.MARGIN,
+                    self.height() - h - self.MARGIN,
+                    w,
+                    h,
+                    Qt.AlignLeft,
+                    text,
+                )
 
             if self.label is not None:
-                w,h = fm.width(self.label), fm.height()
-                qp.drawText(r-self.MARGIN-w, self.height()-h-self.MARGIN, w, h, Qt.AlignRight, self.label)
+                w, h = fm.width(self.label), fm.height()
+                qp.drawText(
+                    r - self.MARGIN - w,
+                    self.height() - h - self.MARGIN,
+                    w,
+                    h,
+                    Qt.AlignRight,
+                    self.label,
+                )
         qp.end()
-
-
 
 
 class SelectionOverlay(Track):
@@ -256,34 +326,39 @@ class SelectionOverlay(Track):
         qp.begin(self)
         qp.setRenderHint(QPainter.Antialiasing)
         qp.setPen(Qt.NoPen)
-        qp.setBrush(QBrush(QColor(255,255,255,100), Qt.SolidPattern))
-        for s,e in self.selected_intervals.intervals:
+        qp.setBrush(QBrush(QColor(255, 255, 255, 100), Qt.SolidPattern))
+        for s, e in self.selected_intervals.intervals:
             s_pos = int(self._time_to_position(s))
             e_pos = int(self._time_to_position(e))
-            if e_pos > s_pos and e_pos > 0 and s_pos < self.width(): 
-                qp.drawRect(s_pos, 0, e_pos-s_pos, self.height())
+            if e_pos > s_pos and e_pos > 0 and s_pos < self.width():
+                qp.drawRect(s_pos, 0, e_pos - s_pos, self.height())
         qp.end()
 
 
 class TrackGroup(Track, HeaderMixin):
     def __init__(self, config, tracks={}, track_order=None, **kwargs):
         super().__init__(config, **kwargs)
-        assert len(tracks)>0
+        assert len(tracks) > 0
         self.tracks = tracks
-        if track_order is None: self.track_order = sorted(tracks.keys())
-        else: self.track_order = track_order
+        if track_order is None:
+            self.track_order = sorted(tracks.keys())
+        else:
+            self.track_order = track_order
         self.initUI(**kwargs)
-        
+
     def initUI(self, **kwargs):
         super().initUI(**kwargs)
         self.splitter = QSplitter(Qt.Vertical, objectName="trackGroup_splitter")
-        for key in self.track_order: self.splitter.addWidget(self.tracks[key])
-        self.splitter.setSizes([self.tracks[key].height_ratio for key in self.track_order])
-        self.splitter.setStyleSheet("QSplitter#trackGroup_splitter { background-color: rgb(30,30,30); }")
+        for key in self.track_order:
+            self.splitter.addWidget(self.tracks[key])
+        self.splitter.setSizes(
+            [self.tracks[key].height_ratio for key in self.track_order]
+        )
+        self.splitter.setStyleSheet(
+            "QSplitter#trackGroup_splitter { background-color: rgb(30,30,30); }"
+        )
         self.layout.addWidget(self.splitter)
 
     def update_current_range(self, current_range):
         for track in self.tracks.values():
             track.update_current_range(current_range)
-
-

@@ -9,10 +9,10 @@ from vidio import VideoReader
 from snub.gui.utils import HeaderMixin
 from snub.gui.panels import Panel
 
-'''
+"""
 Video code was borrowed and modified from 
 https://github.com/jbohnslav/pose_annotator/blob/master/pose_annotator/gui/custom_widgets.py
-'''
+"""
 
 
 def numpy_to_qpixmap(image: np.ndarray) -> QPixmap:
@@ -24,21 +24,23 @@ def numpy_to_qpixmap(image: np.ndarray) -> QPixmap:
     elif C == 3:
         format = QImage.Format_RGB888
     else:
-        raise ValueError('Aberrant number of channels: {}'.format(C))
-    qpixmap = QPixmap(QImage(image, W,H, image.strides[0], format))
+        raise ValueError("Aberrant number of channels: {}".format(C))
+    qpixmap = QPixmap(QImage(image, W, H, image.strides[0], format))
     return qpixmap
 
 
-
 class VideoPanel(Panel, HeaderMixin):
-
     def __init__(self, config, video_path=None, timestamps_path=None, **kwargs):
         super().__init__(config, **kwargs)
-        self.video_frame = VideoFrame(os.path.join(config['project_directory'],video_path))
-        self.timestamps = np.load(os.path.join(config['project_directory'],timestamps_path))
+        self.video_frame = VideoFrame(
+            os.path.join(config["project_directory"], video_path)
+        )
+        self.timestamps = np.load(
+            os.path.join(config["project_directory"], timestamps_path)
+        )
         self.current_frame_index = None
-        self.is_visible = True          
-        self.update_current_time(config['init_current_time'])
+        self.is_visible = True
+        self.update_current_time(config["init_current_time"])
         self.initUI(**kwargs)
 
     def initUI(self, **kwargs):
@@ -48,12 +50,17 @@ class VideoPanel(Panel, HeaderMixin):
         self.video_frame.update()
 
     def update_current_time(self, t):
-        self.current_frame_index = min(self.timestamps.searchsorted(t), len(self.timestamps)-1)
-        if self.is_visible: self.video_frame.show_frame(self.current_frame_index)
+        self.current_frame_index = min(
+            self.timestamps.searchsorted(t), len(self.timestamps) - 1
+        )
+        if self.is_visible:
+            self.video_frame.show_frame(self.current_frame_index)
 
     def toggle_visiblity(self, *args):
         super().toggle_visiblity(*args)
-        if self.is_visible: self.video_frame.show_frame(self.current_frame_index)
+        if self.is_visible:
+            self.video_frame.show_frame(self.current_frame_index)
+
 
 class VideoFrame(QGraphicsView):
     def __init__(self, video_path):
@@ -68,18 +75,18 @@ class VideoFrame(QGraphicsView):
         self.grabGesture(Qt.PinchGesture)
         self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
         self.setStyleSheet("background:transparent;")
-        self.setMouseTracking(True)  
+        self.setMouseTracking(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
     def event(self, event):
         out = super().event(event)
-        if type(event)==QGestureEvent:
+        if type(event) == QGestureEvent:
             gesture = event.gesture(Qt.PinchGesture)
             scale = gesture.scaleFactor()
             self.scale(scale, scale)
         return out
-        
+
     def fitInView(self, scale=True):
         rect = QRectF(self._photo.pixmap().rect())
         if not rect.isNull():
@@ -89,8 +96,10 @@ class VideoFrame(QGraphicsView):
             self.scale(1 / unity.width(), 1 / unity.height())
             viewrect = self.viewport().rect()
             scenerect = self.transform().mapRect(rect)
-            factor = min(viewrect.width() / scenerect.width(),
-                         viewrect.height() / scenerect.height())
+            factor = min(
+                viewrect.width() / scenerect.width(),
+                viewrect.height() / scenerect.height(),
+            )
             self.scale(factor, factor)
             self._zoom = 0
 
@@ -99,4 +108,3 @@ class VideoFrame(QGraphicsView):
         # THIS LINE CHANGES THE SCENE WIDTH AND HEIGHT
         self._photo.setPixmap(qpixmap)
         self.update()
-
