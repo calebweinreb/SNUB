@@ -9,7 +9,7 @@ from vispy.scene import SceneCanvas
 from vispy.scene.visuals import Markers, Line
 
 from snub.gui.panels import Panel
-from snub.gui.utils import HeaderMixin, IntervalIndex
+from snub.gui.utils import HeaderMixin
 
 
 class Pose3DPanel(Panel, HeaderMixin):
