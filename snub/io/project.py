@@ -162,7 +162,7 @@ def create_project(
         end_time = start_time + duration
     if init_current_time is None:
         init_current_time = start_time
-    if (end_time - start_time) / min_step > 200000:
+    if (end_time - start_time) / min_step > 1e6:
         raise AssertionError(
             "min_step={} is too small for the total duration {}. The maximum allowed ratio of `duration/min_step` is 200,000".format(
                 min_step, end_time - start_time
