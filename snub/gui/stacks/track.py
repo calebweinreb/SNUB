@@ -15,7 +15,7 @@ class TrackStack(Stack):
     def __init__(self, config, selected_intervals):
         super().__init__(config, selected_intervals)
         self.bounds = config["bounds"]
-        self.center_playhead_policy = config["center_playhead"]
+        self.track_playhead_policy = config["track_playhead"]
         self.zoom_gain = config["zoom_gain"]
         self.min_range = config["min_range"]
         self.size_ratio = config["tracks_size_ratio"]
