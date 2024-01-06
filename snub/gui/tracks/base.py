@@ -2,9 +2,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import numpy as np
-import os
-import time
-from functools import partial
 from snub.gui.utils import HeaderMixin
 
 

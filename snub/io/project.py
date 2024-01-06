@@ -2,11 +2,9 @@ import numpy as np
 import json
 import os
 import shutil
-import pprint
 import warnings
 import pickle
 import colorsys
-import cv2
 import scipy.sparse
 from vidio import VideoReader
 

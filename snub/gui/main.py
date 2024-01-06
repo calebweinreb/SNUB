@@ -2,12 +2,10 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import sys, os, json
-import numpy as np
 from functools import partial
 from snub.gui.utils import IntervalIndex, CheckBox
 from snub.gui.stacks import PanelStack, TrackStack
 from snub.gui.tracks import TracePlot
-import time
 
 
 def set_style(app):

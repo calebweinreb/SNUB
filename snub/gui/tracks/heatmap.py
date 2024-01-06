@@ -5,7 +5,6 @@ from functools import partial
 import os
 import numpy as np
 import cmapy
-import time
 from numba import njit, prange
 
 from snub.gui.tracks import Track, TracePlot, TrackGroup
