@@ -1003,10 +1003,10 @@ def add_heatmap(
             )
         )
     if vmin is None:
-        vmin = np.min(data)
+        vmin = float(np.min(data))
         print("Set vmin to {}".format(vmin))
     if vmax is None:
-        vmax = np.max(data)
+        vmax = float(np.max(data))
         print("Set vmax to {}".format(vmax))
 
     # generare random colors for traceplot or roiplot

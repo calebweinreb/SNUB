@@ -1,0 +1,154 @@
+{
+    "bounds": [
+        0.0,
+        9.966666666666667
+    ],
+    "layout_mode": "columns",
+    "panels_size_ratio": 1,
+    "tracks_size_ratio": 2,
+    "min_step": 0.03333333333333333,
+    "animation_fps": 30,
+    "zoom_gain": 0.001,
+    "min_range": 0.25,
+    "init_current_time": 0.0,
+    "initial_playspeed": 1,
+    "track_playhead": true,
+    "video": [
+        {
+            "name": "IR_camera",
+            "video_path": "IR_camera.mp4",
+            "timestamps_path": "IR_camera.timestamps.npy",
+            "size_ratio": 1,
+            "order": 0,
+            "initial_visibility": true
+        }
+    ],
+    "scatter": [
+        {
+            "name": "umap embedding",
+            "data_path": "umap embedding.scatter_data.npy",
+            "pointsize": 5,
+            "linewidth": 1,
+            "facecolor": [
+                180,
+                180,
+                180
+            ],
+            "edgecolor": [
+                0,
+                0,
+                0
+            ],
+            "colormap": "viridis",
+            "variable_labels": [
+                "pause",
+                "walk",
+                "turn-right",
+                "turn-left",
+                "rear-up",
+                "rear-down",
+                "groom",
+                "run",
+                "error",
+                "defensive"
+            ],
+            "selected_edgecolor": [
+                255,
+                255,
+                0
+            ],
+            "current_node_size": 20,
+            "current_node_color": [
+                255,
+                0,
+                0
+            ],
+            "selection_intersection_threshold": 0.5,
+            "size_ratio": 1,
+            "order": 0,
+            "initial_visibility": true
+        }
+    ],
+    "pose3D": [],
+    "heatmap": [
+        {
+            "name": "behavior annotations",
+            "data_path": "behavior annotations.heatmap_data.npy",
+            "intervals_path": "behavior annotations.heatmap_intervals.npy",
+            "labels_path": "behavior annotations.heatmap_labels.txt",
+            "initial_show_labels": true,
+            "row_order_path": "behavior annotations.heatmap_row_order.npy",
+            "max_label_width": 300,
+            "label_color": [
+                255,
+                255,
+                255
+            ],
+            "label_font_size": 12,
+            "colormap": "viridis",
+            "vmin": 0.0,
+            "vmax": 1.0,
+            "add_traceplot": true,
+            "height_ratio": 3,
+            "heatmap_height_ratio": 2,
+            "trace_height_ratio": 1,
+            "order": 0,
+            "row_colors": [
+                [
+                    0,
+                    87,
+                    255
+                ],
+                [
+                    0,
+                    74,
+                    255
+                ],
+                [
+                    255,
+                    154,
+                    0
+                ],
+                [
+                    255,
+                    105,
+                    0
+                ],
+                [
+                    0,
+                    255,
+                    205
+                ],
+                [
+                    255,
+                    0,
+                    37
+                ],
+                [
+                    255,
+                    0,
+                    13
+                ],
+                [
+                    0,
+                    255,
+                    183
+                ],
+                [
+                    0,
+                    137,
+                    255
+                ],
+                [
+                    0,
+                    255,
+                    63
+                ]
+            ],
+            "initial_visibility": true
+        }
+    ],
+    "spikeplot": [],
+    "traceplot": [],
+    "roiplot": []
+}

@@ -223,7 +223,7 @@ class Timeline(Track):
         )
         tick_times = np.arange(first_tick, self.current_range[1], tick_interval)
         tick_positions = self._time_to_position(tick_times)
-        return tick_times, tick_positions
+        return tick_times, tick_positions.astype(int)
 
     def paintEvent(self, event):
         qp = QPainter()
