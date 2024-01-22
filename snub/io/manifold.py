@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def firing_rates(spike_times, spike_labels, window_size=0.2, window_step=0.02):
+def firing_rates(spike_times, spike_labels, window_size=0.2, window_step=0.05):
     """Convert spike tikes to firing rates using a sliding window
 
     Parameters
@@ -17,7 +17,7 @@ def firing_rates(spike_times, spike_labels, window_size=0.2, window_step=0.02):
     window_size: float, default=0.2
         Length (in seconds) of the sliding window used to calculate firing rates
 
-    window_step: float, default=0.02
+    window_step: float, default=0.05
         Step-size (in seconds) between each window used to calculate firing rates
 
     Returns
@@ -34,7 +34,7 @@ def firing_rates(spike_times, spike_labels, window_size=0.2, window_step=0.02):
         The time (in seconds) corresponding to the left-boundary
         of the first window in ``firing_rates``.
     """
-    # round spikes to window_step and factor our start time
+    # round spikes to window_step and factor out start time
     spike_times = np.around(spike_times / window_step).astype(int)
     start_time = spike_times.min()
     spike_times = spike_times - start_time
@@ -48,7 +48,7 @@ def firing_rates(spike_times, spike_labels, window_size=0.2, window_step=0.02):
     kernel = np.ones(int(window_size // window_step)) / (window_size // window_step)
     for i in range(heatmap.shape[0]):
         heatmap[i, :] = np.convolve(heatmap[i, :], kernel, mode="same")
-    return heatmap, start_time - window_step / 2
+    return heatmap, (start_time - 1 / 2) * window_step
 
 
 def bin_data(data, binsize, axis=-1, return_intervals=False):

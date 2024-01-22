@@ -1003,10 +1003,10 @@ def add_heatmap(
             )
         )
     if vmin is None:
-        vmin = float(np.min(data))
+        vmin = float(np.nanmin(data))
         print("Set vmin to {}".format(vmin))
     if vmax is None:
-        vmax = float(np.max(data))
+        vmax = float(np.nanmax(data))
         print("Set vmax to {}".format(vmax))
 
     # generare random colors for traceplot or roiplot
@@ -1046,9 +1046,9 @@ def add_spikeplot(
     name,
     spike_times,
     spike_labels,
-    heatmap_range=60,
+    heatmap_range=10,
     window_size=0.2,
-    window_step=0.02,
+    window_step=0.05,
     labels=None,
     sort_method=None,
     initial_show_labels=True,
@@ -1094,7 +1094,7 @@ def add_spikeplot(
         The source/label for each spike in ``spike_times``. The maximum
         value of this array determines the number of rows in the heatmap.
 
-    heatmap_range: float, default=60
+    heatmap_range: float, default=10
         Defines the zoom-level at which the spike-view converts to
         a heatmap-view. The transition occurs when the currently
         visible range in the timeline is equal to ``heatmap_range`` (in seconds)
@@ -1102,7 +1102,7 @@ def add_spikeplot(
     window_size: float, default=0.2
         Length (in seconds) of the sliding window used to calculate firing rates
 
-    window_step: float, default=0.02
+    window_step: float, default=0.05
         Step-size (in seconds) between each window used to calculate firing rates
 
     initial_visibility: bool, default=True

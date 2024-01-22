@@ -26,13 +26,14 @@ Loading data is simple with the ``snub.io`` module. For example the following co
 SNUB Documentation
 ------------------
 
-
 .. toctree::
    :maxdepth: 2
 
    install
 
    tutorials
+
+   nwb
 
    snub.io<api>
 
