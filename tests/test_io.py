@@ -6,12 +6,12 @@ import shutil
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def data_directory():
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def project_directory(data_directory):
     """Create a temporary project directory for testing."""
 
