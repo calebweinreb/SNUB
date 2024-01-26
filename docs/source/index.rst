@@ -23,7 +23,7 @@ Loading data is simple with the ``snub.io`` module. For example the following co
    snub.io.add_splikeplot(project_directory, 'my_ephys_data', spike_times, spike_labels) 
 
 
-We also support automatic conversion of NWB files to SNUB projects. See the `nwb tutorial <tutorials/nwb>`_ for more information. Note that only a subset of NWB neurodata types are currently supported.
+We also support automatic conversion of NWB files to SNUB projects for a limited set of NWB neurodata types. 
 
 
 SNUB Documentation
