@@ -1,13 +1,13 @@
 Tutorials
 =========
 
-This tutorial describes how to setup a SNUB project with video, neural activity recordings and behavioral annotations. The neural activity is used to generate a low-dimensional UMAP embedding, and we describe some of the user-interface tools that help link the embedding to single-neuron traces and to behavior. There are two example pipelines for calcium imaging and electrophysiology respectively
+This tutorial describes how to setup a SNUB project with video, neural activity recordings and behavioral annotations. The neural activity is used to generate a low-dimensional UMAP embedding, and we describe some of the user-interface tools that help link the embedding to single-neuron traces and to behavior. There are two example pipelines for calcium imaging and electrophysiology respectively. The input data and processed outputs from these tutorials are `available on Zenodo <https://doi.org/10.5281/zenodo.10578025>`_. 
 
 Calcium Imaging
 ---------------
 
-Download the `example behavior and calcium imaging data <https://www.dropbox.com/sh/1suksns550opt5x/AAAhNxCRGw3LXKJPosYLhrzRa?dl=0>`_. The final SNUB 
-project directory generated in this tutorial is `ca2_imaging_project <https://www.dropbox.com/sh/ujr3ttdc3gsxtqt/AAAKLL9iaF54cOwPKRPMTENIa?dl=0>`_. 
+Download the `example behavior and calcium imaging data <https://zenodo.org/records/10578025/files/miniscope_data.zip?download=1>`_. The final SNUB 
+project generated in this tutorial is available `here <https://zenodo.org/records/10578025/files/miniscope_project.zip?download=1>`_. 
 This tutorial is based on head-mounted 1-photon calcium imaging and video recordings
 from a mouse engaged in social interaction. The camera and microscope were synchronized 
 and have associated timestamps in seconds. There are also a behavior annotations
@@ -136,8 +136,8 @@ Electrophysiology
 -----------------
 
 
-Download the `example ephys and video data <https://www.dropbox.com/sh/76kwzun33lskhil/AACtT97l-CJy6K6GR6R965kLa?dl=0>`_. The final SNUB 
-project directory generated in this tutorial is `ephys_project <https://www.dropbox.com/sh/6ae5z4jw6c769xa/AABWNS8iWV-yUEFEPJ9CD2pda?dl=0>`_. This tutorial is based on electrophysiology and video recordings from a 
+Download the `example ephys and video data <https://zenodo.org/records/10578025/files/ephys_data.zip?download=1>`_. The final SNUB 
+project directory generated in this tutorial is available `here <https://zenodo.org/records/10578025/files/ephys_project.zip?download=1>`_. This tutorial is based on electrophysiology and video recordings from a 
 mouse behaving in an open field. The camera and ephys probe were synchronized 
 and have associated timestamps in seconds. 
 
