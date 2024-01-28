@@ -2,7 +2,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import numpy as np
-import time
 import os
 
 from vidio import VideoReader

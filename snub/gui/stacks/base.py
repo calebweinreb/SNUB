@@ -11,8 +11,9 @@ class Stack(QWidget):
         self.selected_intervals = selected_intervals
 
     def change_layout_mode(self, layout_mode):
-        for widget in self.widgets: widget.change_layout_mode(layout_mode)
-        
+        for widget in self.widgets:
+            widget.change_layout_mode(layout_mode)
+
     def initUI(self):
         sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(self.size_ratio)

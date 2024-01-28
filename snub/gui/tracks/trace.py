@@ -2,7 +2,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import pyqtgraph as pg
-import colorsys
 import numpy as np
 import pickle
 import os

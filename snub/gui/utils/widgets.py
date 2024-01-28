@@ -1,4 +1,4 @@
-import numpy as np, os
+import os
 from pyqtgraph import VerticalLabel
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *

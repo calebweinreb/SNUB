@@ -1,0 +1,10 @@
+pause
+walk
+turn-right
+turn-left
+rear-up
+rear-down
+groom
+run
+error
+defensive

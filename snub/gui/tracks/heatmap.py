@@ -5,7 +5,6 @@ from functools import partial
 import os
 import numpy as np
 import cmapy
-import time
 from numba import njit, prange
 
 from snub.gui.tracks import Track, TracePlot, TrackGroup
@@ -220,7 +219,7 @@ class HeatmapLabels(QWidget):
                     qp.setPen(QColor(*self.label_colors[i], self.base_alpha))
                 qp.drawText(
                     self.label_margin,
-                    height * self.height() - self.max_label_height // 2,
+                    int(height * self.height()) - self.max_label_height // 2,
                     self.max_label_width,
                     self.max_label_height,
                     Qt.AlignVCenter,

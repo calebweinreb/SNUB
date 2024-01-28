@@ -2,9 +2,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import numpy as np
-import os
-import time
-from functools import partial
 from snub.gui.utils import HeaderMixin
 
 
@@ -226,7 +223,7 @@ class Timeline(Track):
         )
         tick_times = np.arange(first_tick, self.current_range[1], tick_interval)
         tick_positions = self._time_to_position(tick_times)
-        return tick_times, tick_positions
+        return tick_times, tick_positions.astype(int)
 
     def paintEvent(self, event):
         qp = QPainter()
