@@ -3,15 +3,6 @@ import os
 from PyQt5.QtWidgets import QApplication
 from snub.gui.main import MainWindow
 
-# @pytest.fixture(scope="module")
-# def qt_app():
-#     """Fixture to create a QApplication instance for the tests."""
-#     if QApplication.instance() is None:
-#         app = QApplication([])
-#     else:
-#         app = QApplication.instance()
-#     yield app
-
 
 @pytest.fixture(scope="module")
 def project_directory():
