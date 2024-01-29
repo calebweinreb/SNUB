@@ -1,7 +1,5 @@
 import pynwb
 import os
-from ndx_pose import PoseEstimation
-from ndx_labels import LabelSeries
 import numpy as np
 import snub.io.project
 from vidio import VideoReader

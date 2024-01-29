@@ -22,7 +22,7 @@ To speed up selections, we recommend installing ``ncls``::
 
    pip install ncls
 
-To use the 3D mesh viewer::
+To use the 3D pose viewer::
 
    pip install PyOpenGL PyOpenGL_accelerate
 
