@@ -13,10 +13,9 @@ Install `Anaconda <https://docs.anaconda.com/anaconda/install/index.html>`_ or `
 Install SNUB
 ------------
 
-Clone or download the `SNUB github repo <https://github.com/calebweinreb/SNUB>`_ and pip install::
+Install SNUB using ``pip``::
 
-   git clone https://github.com/calebweinreb/SNUB.git
-   pip install -e SNUB
+   pip install systems-neuro-browser
 
 To speed up selections, we recommend installing ``ncls``::
 
