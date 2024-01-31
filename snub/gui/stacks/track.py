@@ -158,7 +158,6 @@ class TrackStack(Stack):
             child.update_current_range(self.current_range)
 
     def update_current_time(self, t):
-        pass
         for w in self.widgets + self.overlays:
             w.update_current_time(t)
         self.current_time_marker.set_timepoint(t)
