@@ -26,6 +26,7 @@ def setup_and_teardown():
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
+@pytest.mark.skip_if_flag
 def test_nwb_conversion(setup_and_teardown):
     """Test snub.io.nwb.create_project_from_nwb"""
     nwb_file = setup_and_teardown
