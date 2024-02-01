@@ -69,7 +69,7 @@ class ScatterPanel(Panel, HeaderMixin):
         self.variable_menu.itemClicked.connect(self.variable_menu_item_clicked)
         self.show_variable_menu()
 
-        self.canvas = SceneCanvas(self, keys="interactive", show=True)
+        self.canvas = SceneCanvas(self, show=True)
         self.canvas.events.mouse_move.connect(self.mouse_move)
         self.canvas.events.mouse_release.connect(self.mouse_release)
         self.viewbox = self.canvas.central_widget.add_grid().add_view(
