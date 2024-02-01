@@ -190,3 +190,4 @@ class SpikePlotTraceGroup(TrackGroup):
             **kwargs
         )
         spikeplot.display_trace_signal.connect(trace.show_trace)
+        spikeplot.heatmap_labels.display_trace_signal.connect(trace.show_trace)
