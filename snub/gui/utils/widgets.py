@@ -42,6 +42,8 @@ class AdjustColormapDialog(QDialog):
 
 
 class HeaderMixin:
+    closed = pyqtSignal()
+
     def initUI(
         self,
         name="",
@@ -59,6 +61,8 @@ class HeaderMixin:
         self.header_height = header_height
         self.toggle_button = QPushButton()
         self.toggle_button.clicked.connect(self.toggle_visiblity)
+        self.close_button = QPushButton()
+        self.close_button.clicked.connect(self.hide_widget)
 
         self.title = VerticalLabel(name, orientation="horizontal")
         self.header = QWidget(objectName="trackGroup_header")
@@ -67,6 +71,7 @@ class HeaderMixin:
         self.header_layout.addWidget(self.title)
         self.header_layout.addStretch(0)
         self.header_layout.addWidget(self.toggle_button)
+        self.header_layout.addWidget(self.close_button)
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
@@ -86,8 +91,17 @@ class HeaderMixin:
                 )
             )
         )
+        self.x_icon = QIcon(
+            QPixmap(
+                os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)), "../icons", "x.png"
+                )
+            )
+        )
         self.toggle_button.setIcon(self.plus_icon)
         self.toggle_button.setIconSize(QSize(12, 12))
+        self.close_button.setIcon(self.x_icon)
+        self.close_button.setIconSize(QSize(12, 12))
 
         self.setStyleSheet(
             "QWidget#trackGroup_header { background-color: rgb(30,30,30); }"
@@ -104,6 +118,10 @@ class HeaderMixin:
         else:
             self.is_visible = True
         self.update_layout()
+
+    def hide_widget(self):
+        self.hide()
+        self.closed.emit()
 
     def set_header_orientation(self, orientation):
         self.setMaximumSize(10000, 10000)
