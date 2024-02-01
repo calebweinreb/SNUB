@@ -27,6 +27,9 @@ class PanelStack(Stack):
             panel = ROIPanel(config, **props)
             self.widgets.append(panel)
 
+        for w in self.widgets:
+            w.closed.connect(self.widget_closed)
+
         self.initUI()
 
     def initUI(self):
@@ -60,3 +63,7 @@ class PanelStack(Stack):
             {"columns": Qt.Vertical, "rows": Qt.Horizontal}[layout_mode]
         )
         super().change_layout_mode(layout_mode)
+
+    def widget_closed(self):
+        if not any([w.isVisible() for w in self.widgets]):
+            self.hide()
