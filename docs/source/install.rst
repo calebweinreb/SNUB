@@ -21,6 +21,10 @@ To speed up selections, we recommend installing ``ncls``::
 
    pip install ncls
 
+To include optional development dependencies, install with the ``[dev]`` option::
+
+   pip install systems-neuro-browser[dev]
+
 
 
 Test SNUB
