@@ -8,6 +8,7 @@ import os
 
 from snub.gui.tracks import Track, TrackGroup
 from snub.io.project import _random_color
+from snub.gui.utils import CHECKED_ICON_PATH, UNCHECKED_ICON_PATH
 
 
 class CheckableComboBox(QComboBox):
@@ -49,21 +50,30 @@ class TracePlot(Track):
         config,
         data_path=None,
         data=None,
-        labels=None,
         bound_rois="",
         initial_visible_traces=None,
         controls_padding_right=10,
         colors={},
+        linewidth=1,
         yaxis_width=30,
         controls_padding_top=5,
         trace_label_margin=4,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(config, **kwargs)
         self.controls_padding_right = controls_padding_right
         self.controls_padding_top = controls_padding_top
         self.trace_label_margin = trace_label_margin
+        self.linewidth = linewidth
         self.bound_rois = None if len(bound_rois) == 0 else bound_rois
+
+        self.auto_yaxis_limits = True
+        self.yaxis_limits = (0, 1)
+        self.adjust_yaxis_dialog = AdjustYaxisDialog(self)
+        self.adjust_yaxis_dialog.new_axis_limits.connect(self.update_yaxis_limits)
+
+        self.adjust_linewidth_dialog = AdjustLinewidthDialog(self, linewidth)
+        self.adjust_linewidth_dialog.new_linewidth.connect(self.update_linewidth)
 
         if data is not None:
             self.data = data
@@ -172,9 +182,13 @@ class TracePlot(Track):
     def update_plot(self):
         self.plotWidget.clear()
         for label in self.visible_traces:
-            self.plotWidget.plot(
-                *self.data[label].T, pen=pg.mkPen(QColor(*self.colors[label]))
-            )
+            pen = pg.mkPen(QColor(*self.colors[label]), width=self.linewidth)
+            self.plotWidget.plot(*self.data[label].T, pen=pen)
+        if self.auto_yaxis_limits:
+            self.plotWidget.enableAutoRange(axis=pg.ViewBox.YAxis)
+        else:
+            self.plotWidget.setYRange(*self.yaxis_limits, padding=0)
+
         self.visible_traces_signal.emit(self.visible_traces)
 
     def update_controls_geometry(self):
@@ -203,6 +217,134 @@ class TracePlot(Track):
     def bind_rois(self, roiplot):
         self.visible_traces_signal.connect(roiplot.update_visible_contours)
         self.visible_traces_signal.emit(self.visible_traces)
+
+    def contextMenuEvent(self, event):
+        contextMenu = QMenu(self)
+
+        def add_menu_item(name, slot, item_type="label"):
+            action = QWidgetAction(self)
+            if item_type == "checkbox":
+                widget = QCheckBox(name)
+                widget.stateChanged.connect(slot)
+            elif item_type == "label":
+                widget = QLabel(name)
+                action.triggered.connect(slot)
+            action.setDefaultWidget(widget)
+            contextMenu.addAction(action)
+            return widget
+
+        checkbox = add_menu_item(
+            "Automatic y-axis limits",
+            self.toggle_auto_yaxis_limits,
+            item_type="checkbox",
+        )
+        if self.auto_yaxis_limits:
+            checkbox.setChecked(True)
+        else:
+            checkbox.setChecked(False)
+
+        add_menu_item("Adjust y-axis limits", self.show_adjust_yaxis_dialog)
+        contextMenu.addSeparator()
+
+        add_menu_item("Adjust line width", self.show_adjust_linewidth_dialog)
+
+        contextMenu.setStyleSheet(
+            f"""
+            QMenu::item, QLabel, QCheckBox {{ background-color : #3e3e3e; padding: 5px 6px 5px 6px;}}
+            QMenu::item:selected, QLabel:hover, QCheckBox:hover {{ background-color: #999999;}}
+            QMenu::separator {{ background-color: rgb(20,20,20);}}
+            QCheckBox::indicator:unchecked {{ image: url({UNCHECKED_ICON_PATH}); }}
+            QCheckBox::indicator:checked {{ image: url({CHECKED_ICON_PATH}); }}
+            QCheckBox::indicator {{ width: 14px; height: 14px;}}
+            """
+        )
+
+        action = contextMenu.exec_(self.mapToGlobal(event.pos()))
+
+    def show_adjust_yaxis_dialog(self):
+        if self.auto_yaxis_limits:
+            self.yaxis_limits = self.plotWidget.getViewBox().viewRange()[1]
+            self.adjust_yaxis_dialog.set_yaxis_limits(*self.yaxis_limits)
+        self.adjust_yaxis_dialog.show()
+
+    def show_adjust_linewidth_dialog(self):
+        self.adjust_linewidth_dialog.show()
+
+    def toggle_auto_yaxis_limits(self, state):
+        self.auto_yaxis_limits = state
+        if state:
+            self.update_plot()
+        else:
+            self.show_adjust_yaxis_dialog()
+
+    def update_yaxis_limits(self, ymin, ymax):
+        self.yaxis_limits = (ymin, ymax)
+        self.auto_yaxis_limits = False
+        self.update_plot()
+
+    def update_linewidth(self, linewidth):
+        self.linewidth = linewidth
+        self.update_plot()
+
+
+class AdjustYaxisDialog(QDialog):
+    new_axis_limits = pyqtSignal(float, float)
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        self.ymax = QLineEdit(self)
+        self.ymin = QLineEdit(self)
+        self.buttonBox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
+        )
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(lambda: self.hide())
+
+        layout = QFormLayout(self)
+        layout.addRow("Y-max", self.ymax)
+        layout.addRow("Y-min", self.ymin)
+        layout.addWidget(self.buttonBox)
+
+    def accept(self):
+        try:
+            ymax, ymin = float(self.ymax.text()), float(self.ymin.text())
+            self.new_axis_limits.emit(ymin, ymax)
+            self.hide()
+        except:
+            pass
+
+    def set_yaxis_limits(self, ymin, ymax):
+        self.ymin.setText(str(ymin))
+        self.ymax.setText(str(ymax))
+
+
+class AdjustLinewidthDialog(QDialog):
+    new_linewidth = pyqtSignal(int)
+
+    def __init__(self, parent, linewidth):
+        super().__init__(parent)
+        self.parent = parent
+        self.linewidth = QLineEdit(self)
+        self.linewidth.setText(str(linewidth))
+        self.buttonBox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
+        )
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(lambda: self.hide())
+
+        layout = QFormLayout(self)
+        layout.addRow("Line width", self.linewidth)
+        layout.addWidget(self.buttonBox)
+
+    def accept(self):
+        try:
+            linewidth = int(self.linewidth.text())
+            assert linewidth > 0
+            self.new_linewidth.emit(linewidth)
+            self.hide()
+        except:
+            pass
 
 
 class HeadedTracePlot(TrackGroup):
