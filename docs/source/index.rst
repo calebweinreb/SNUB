@@ -20,7 +20,7 @@ Loading data is simple with the ``snub.io`` module. For example the following co
 
    snub.io.create_project(project_directory, duration=1800)
    snub.io.add_video(project_directory, 'path/to/my_video.avi', name='IR_camera')
-   snub.io.add_splikeplot(project_directory, 'my_ephys_data', spike_times, spike_labels) 
+   snub.io.add_spikeplot(project_directory, 'my_ephys_data', spike_times, spike_labels) 
 
 
 We also support automatic conversion of NWB files to SNUB projects for a limited set of NWB neurodata types. 
