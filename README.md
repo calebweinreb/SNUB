@@ -15,7 +15,7 @@ conda create -n snub python=3.8
 conda activate snub
 pip install systems-neuro-browser
 ```
-To speed up selections, `pip install ncls`. To use the 3D pose viewer, install `pip install PyOpenGL PyOpenGL_accelerate`. The docs include more detailed [installation instructions](https://snub.readthedocs.io/en/latest/install.html).
+To speed up selections, `pip install ncls`. To install optional developer dependencies, `pip install systems-neuro-browser[dev]`. The docs include more detailed [installation instructions](https://snub.readthedocs.io/en/latest/install.html).
 
 ## Getting Started
 
