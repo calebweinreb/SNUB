@@ -79,7 +79,7 @@ class ProjectTab(QWidget):
         self.speed_slider = QSlider(Qt.Horizontal)
         self.speed_label = QLabel()
         self.track_playhead_checkbox = CheckBox(self.track_playhead)
-        self.track_playhead_checkbox.state_change.connect(self.update_track_playhead)
+        self.track_playhead_checkbox.stateChanged.connect(self.update_track_playhead)
 
         # connect signals and slots
         self.speed_slider.valueChanged.connect(self.change_play_speed)

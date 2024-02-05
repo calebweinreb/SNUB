@@ -8,7 +8,7 @@ import cmapy
 from numba import njit, prange
 
 from snub.gui.tracks import Track, TracePlot, TrackGroup
-from snub.gui.utils import AdjustColormapDialog
+from snub.gui.utils import AdjustColormapDialog, CHECKED_ICON_PATH, UNCHECKED_ICON_PATH
 from snub.io.project import _random_color
 
 
@@ -249,7 +249,7 @@ class Heatmap(Track):
         vmax=1,
         add_traceplot=False,
         vertical_range=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(config, **kwargs)
         self.selected_intervals = selected_intervals
@@ -378,10 +378,14 @@ class Heatmap(Track):
         )
 
         contextMenu.setStyleSheet(
+            f"""
+            QMenu::item, QLabel, QCheckBox {{ background-color : #3e3e3e; padding: 5px 6px 5px 6px;}}
+            QMenu::item:selected, QLabel:hover, QCheckBox:hover {{ background-color: #999999;}}
+            QMenu::separator {{ background-color: rgb(20,20,20);}}
+            QCheckBox::indicator:unchecked {{ image: url({UNCHECKED_ICON_PATH}); }}
+            QCheckBox::indicator:checked {{ image: url({CHECKED_ICON_PATH}); }}
+            QCheckBox::indicator {{ width: 14px; height: 14px;}}
             """
-            QLabel, QPushButton { background-color : #3E3E3E; padding: 10px 12px 10px 12px;}
-            QLabel:hover, QPushButton:hover { background-color: #999999;} 
-            QMenu::separator { background-color: rgb(20,20,20);} """
         )
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
 
@@ -473,14 +477,14 @@ class HeatmapTraceGroup(TrackGroup):
         heatmap_height_ratio=2,
         height_ratio=1,
         row_colors=None,
-        **kwargs
+        **kwargs,
     ):
         heatmap = Heatmap(
             config,
             selected_intervals,
             row_colors=row_colors,
             height_ratio=heatmap_height_ratio,
-            **kwargs
+            **kwargs,
         )
 
         ts = heatmap.intervals.mean(1)
@@ -492,7 +496,7 @@ class HeatmapTraceGroup(TrackGroup):
                 l: np.vstack((ts, d)).T for l, d in zip(heatmap.labels, heatmap.data)
             },
             colors={l: c for l, c in zip(heatmap.labels, heatmap.row_colors)},
-            **kwargs
+            **kwargs,
         )
 
         heatmap.display_trace_signal.connect(trace.show_trace)
@@ -505,5 +509,5 @@ class HeatmapTraceGroup(TrackGroup):
             tracks={"trace": trace, "heatmap": heatmap},
             track_order=["trace", "heatmap"],
             height_ratio=height_ratio,
-            **kwargs
+            **kwargs,
         )

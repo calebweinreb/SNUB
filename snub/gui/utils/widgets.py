@@ -4,6 +4,18 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 
+CHECKED_ICON_PATH = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    "../icons",
+    "checkbox_checked.png",
+)
+
+UNCHECKED_ICON_PATH = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    "../icons",
+    "checkbox_unchecked.png",
+)
+
 
 class AdjustColormapDialog(QDialog):
     new_range = pyqtSignal(float, float)
@@ -11,9 +23,7 @@ class AdjustColormapDialog(QDialog):
     def __init__(self, parent, vmin, vmax):
         super().__init__(parent)
         self.parent = parent
-        self.vmin = QLineEdit(
-            self,
-        )
+        self.vmin = QLineEdit(self)
         self.vmax = QLineEdit(self)
         self.vmin.setText(str(vmin))
         self.vmax.setText(str(vmax))
@@ -180,29 +190,13 @@ class HeaderMixin:
 
 
 class CheckBox(QPushButton):
-    state_change = pyqtSignal(bool)
+    stateChanged = pyqtSignal(bool)
 
     def __init__(self, checkstate=False):
         super().__init__()
         self.checkstate = checkstate
-        self.unchecked_icon = QIcon(
-            QPixmap(
-                os.path.join(
-                    os.path.dirname(os.path.realpath(__file__)),
-                    "../icons",
-                    "checkbox_unchecked.png",
-                )
-            )
-        )
-        self.checked_icon = QIcon(
-            QPixmap(
-                os.path.join(
-                    os.path.dirname(os.path.realpath(__file__)),
-                    "../icons",
-                    "checkbox_checked.png",
-                )
-            )
-        )
+        self.unchecked_icon = QIcon(QPixmap(UNCHECKED_ICON_PATH))
+        self.checked_icon = QIcon(QPixmap(CHECKED_ICON_PATH))
         self.update_icon()
         self.setIconSize(QSize(14, 14))
         self.clicked.connect(self.toggle)
@@ -211,7 +205,7 @@ class CheckBox(QPushButton):
     def toggle(self):
         self.checkstate = not self.checkstate
         self.update_icon()
-        self.state_change.emit(self.checkstate)
+        self.stateChanged.emit(self.checkstate)
 
     def update_icon(self):
         if self.checkstate:

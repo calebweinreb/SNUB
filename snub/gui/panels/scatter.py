@@ -11,7 +11,13 @@ from vispy.scene.visuals import Markers, Rectangle
 from vispy.util import keys
 
 from snub.gui.panels import Panel
-from snub.gui.utils import HeaderMixin, AdjustColormapDialog, IntervalIndex
+from snub.gui.utils import (
+    HeaderMixin,
+    AdjustColormapDialog,
+    IntervalIndex,
+    UNCHECKED_ICON_PATH,
+    CHECKED_ICON_PATH,
+)
 
 
 class ScatterPanel(Panel, HeaderMixin):
@@ -35,7 +41,7 @@ class ScatterPanel(Panel, HeaderMixin):
         colormap="viridis",
         selection_intersection_threshold=0.5,
         variable_labels=[],
-        **kwargs
+        **kwargs,
     ):
         super().__init__(config, **kwargs)
         assert data_path is not None
@@ -238,10 +244,14 @@ class ScatterPanel(Panel, HeaderMixin):
             add_menu_item("Show marker trail", partial(self.toggle_marker_trail, True))
 
         contextMenu.setStyleSheet(
+            f"""
+            QMenu::item, QLabel, QCheckBox {{ background-color : #3e3e3e; padding: 5px 6px 5px 6px;}}
+            QMenu::item:selected, QLabel:hover, QCheckBox:hover {{ background-color: #999999;}}
+            QMenu::separator {{ background-color: rgb(20,20,20);}}
+            QCheckBox::indicator:unchecked {{ image: url({UNCHECKED_ICON_PATH}); }}
+            QCheckBox::indicator:checked {{ image: url({CHECKED_ICON_PATH}); }}
+            QCheckBox::indicator {{ width: 14px; height: 14px;}}
             """
-            QMenu::item, QLabel, QCheckBox { background-color : #3E3E3E; padding: 5px 6px 5px 6px;}
-            QMenu::item:selected, QLabel:hover, QCheckBox:hover { background-color: #999999;}
-            QMenu::separator { background-color: rgb(20,20,20);} """
         )
         action = contextMenu.exec_(event.native.globalPos())
 
