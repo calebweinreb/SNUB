@@ -64,7 +64,15 @@ class ScatterPanel(Panel, HeaderMixin):
         self.interval_index = IntervalIndex(
             min_step=self.min_step, intervals=self.data[:, 2:4]
         )
+
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
+        self.adjust_colormap_dialog.new_range.connect(self.update_colormap_range)
+        self.adjust_marker_dialog = AdjustMarkerDialog(
+            self, self.linewidth, self.pointsize
+        )
+        self.adjust_marker_dialog.new_linewidth.connect(self.update_linewidth)
+        self.adjust_marker_dialog.new_pointsize.connect(self.update_pointsize)
+
         self.variable_menu = QListWidget(self)
         self.variable_menu.itemClicked.connect(self.variable_menu_item_clicked)
         self.show_variable_menu()
@@ -203,9 +211,8 @@ class ScatterPanel(Panel, HeaderMixin):
         )
         if self.is_selected.sum() == 0:
             label.setStyleSheet("QLabel { color: rgb(120,120,120); }")
-        label = add_menu_item(
-            "Restore original variable order", self.show_variable_menu
-        )
+
+        add_menu_item("Restore original variable order", self.show_variable_menu)
         contextMenu.addSeparator()
 
         # toggle whether to plot high-variable-val nodes on top
@@ -221,7 +228,8 @@ class ScatterPanel(Panel, HeaderMixin):
         contextMenu.addSeparator()
 
         # click to show adjust colormap range dialog
-        label = add_menu_item("Adjust colormap range", self.show_adjust_colormap_dialog)
+        add_menu_item("Adjust colormap range", self.show_adjust_colormap_dialog)
+        add_menu_item("Adjust marker appearance", self.show_adjust_marker_dialog)
         contextMenu.addSeparator()
 
         if self.show_marker_trail:
@@ -268,6 +276,14 @@ class ScatterPanel(Panel, HeaderMixin):
         self.vmin, self.vmax = vmin, vmax
         self.update_scatter()
 
+    def update_linewidth(self, linewidth):
+        self.linewidth = linewidth
+        self.update_scatter()
+
+    def update_pointsize(self, pointsize):
+        self.pointsize = pointsize
+        self.update_scatter()
+
     def toggle_sort_by_color_value(self, check_state):
         if check_state == 0:
             self.sort_nodes_by_variable = False
@@ -277,6 +293,9 @@ class ScatterPanel(Panel, HeaderMixin):
 
     def show_adjust_colormap_dialog(self):
         self.adjust_colormap_dialog.show()
+
+    def show_adjust_marker_dialog(self):
+        self.adjust_marker_dialog.show()
 
     def colorby(self, label):
         self.current_variable_label = label
@@ -324,3 +343,38 @@ class ScatterPanel(Panel, HeaderMixin):
         )
         self.is_selected = intersections > self.selection_intersection_threshold
         self.update_scatter()
+
+
+class AdjustMarkerDialog(QDialog):
+    new_linewidth = pyqtSignal(float)
+    new_pointsize = pyqtSignal(float)
+
+    def __init__(self, parent, linewidth, pointsize):
+        super().__init__(parent)
+        self.parent = parent
+        self.linewidth = QLineEdit(self)
+        self.pointsize = QLineEdit(self)
+        self.linewidth.setText(str(linewidth))
+        self.pointsize.setText(str(pointsize))
+        self.buttonBox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Close, self
+        )
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(lambda: self.hide())
+
+        layout = QFormLayout(self)
+        layout.addRow("Border width", self.linewidth)
+        layout.addRow("Marker size", self.pointsize)
+        layout.addWidget(self.buttonBox)
+
+    def accept(self):
+        try:
+            linewidth = float(self.linewidth.text())
+            self.new_linewidth.emit(linewidth)
+        except:
+            pass
+        try:
+            pointsize = float(self.pointsize.text())
+            self.new_pointsize.emit(pointsize)
+        except:
+            pass
