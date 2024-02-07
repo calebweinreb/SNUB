@@ -36,8 +36,10 @@ SNUB Documentation
 
    tutorials
 
+   gui
+
    nwb
 
-   snub.io<api>
+   api
 
 

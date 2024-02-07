@@ -6,6 +6,7 @@ from functools import partial
 from snub.gui.utils import IntervalIndex, CheckBox
 from snub.gui.stacks import PanelStack, TrackStack
 from snub.gui.tracks import TracePlot
+from snub.gui.help import HelpMenu
 
 
 def set_style(app):
@@ -345,13 +346,13 @@ class MainWindow(QMainWindow):
         editMenu = mainMenu.addMenu("&Edit")
         editMenu.addAction(deselect_all)
 
-        # saveMenu = fileMenu.addMenu('&Save...')
-        # saveMenu.addAction(save_layout)
-
         windowMenu = mainMenu.addMenu("&Window")
         layoutMenu = windowMenu.addMenu("&Layout...")
         layoutMenu.addAction(self.set_layout_to_cols)
         layoutMenu.addAction(self.set_layout_to_rows)
+
+        helpMenu = HelpMenu(self)
+        mainMenu.addMenu(helpMenu.get_menu())
 
         # try to open projects that are passed as command line arguments
         self.open(project_directories=args)

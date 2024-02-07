@@ -1,12 +1,11 @@
-Browser API
-===========
+Developer API
+=============
 
 snub.io
 -------
 
 .. automodule:: snub.io.project
    :members:
-
 
 .. automodule:: snub.io.manifold
    :members:
