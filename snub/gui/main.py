@@ -6,7 +6,7 @@ from functools import partial
 from snub.gui.utils import IntervalIndex, CheckBox
 from snub.gui.stacks import PanelStack, TrackStack
 from snub.gui.tracks import TracePlot
-from snub.gui.help import HelpMenu
+from snub.gui.help.help_menu import HelpMenu
 
 
 def set_style(app):
