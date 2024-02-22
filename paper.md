@@ -31,18 +31,20 @@ A core goal of neuroscience is to discover temporal patterns in behavior and neu
 
 # Statement of need
 
-Direct inspection of behavior and neurophysiology recordings is hard because the data are typically high-dimensional, come in a variety of modalities (such as raw video, pose tracking, spike trains, calcium traces, etc.) with different sampling rates and methods of visualization. SNUB lowers the activation energy for data exploration by integrating these data streams into a single easy-to-navigate interface. The interface is divided into synchronized windows that each show a different data stream. The linked data views allow users to quickly inspect the relationships between experimental phenomena, such as the behaviors that occur during a particular pattern of neural activity (\autoref{fig:screenshot}). 
+Direct inspection of behavior and neurophysiology recordings is hard because the data are typically high-dimensional, come in a variety of modalities (such as raw video, pose tracking, spike trains, calcium traces, etc.) with different sampling rates and methods of visualization. SNUB lowers the activation energy for data exploration by integrating these data streams into a single easy-to-navigate interface. The main intended user is a researcher who has collected data and started to analyze it (e.g. in python). They may already be generating static versions of the data views afforded by SNUB, such as aligned heatmaps and trace plots, and now would like a frictionless way to pan/zoom around these plots and keep all the data views linked together. Importantly, SNUB should be thought of as akin to a plotting library, rather than a data analysis tool. 
+
+The interface is divided into synchronized windows that each show a different data stream. The linked data views allow users to quickly inspect the relationships between experimental phenomena, such as the behaviors that occur during a particular pattern of neural activity (\autoref{fig:screenshot}). 
 
 ![Screenshot from SNUB.\label{fig:screenshot}](docs/media/screenshot.png)
 
 We provide dedicated widgets and loading functions for exploring raw video, 3D animal pose, behavior annotations, electrophysiology recordings, and calcium imaging data - either as a raster or as a super-position of labeled regions of interest (ROIs). More broadly, SNUB can display any data that takes the form of a heatmap, scatter plot, video, or collection of named temporally-varying signals. 
 
-In addition to the front-end GUI, we include a library of functions that ingest raw data and save it to a format that is readable by the SNUB viewer. The following code, for example, creates a project with paired electrophysiology and video data.
+In addition to the front-end GUI, we include a library of functions that ingest data (or paths to the data) and visualization parameters, and then orgnaize these in a format that is quickly readable by the SNUB viewer. The following code, for example, creates a project with paired electrophysiology and video data.
 
 ```
 snub.io.create_project(project_directory, duration=1800)
 snub.io.add_video(project_directory, 'path/to/my_video.avi', name='IR_camera')
-snub.io.add_spikeplot(project_directory, 'my_ephys_data', spike_times, spike_labels)
+snub.io.add_spikeplot(project_directory, 'my_ephys_data', spike_data)
 ```
 
 We also provide a rudimentary tool for automatically generating SNUB datasets from Neurodata Without Borders (NWB) files, which contain raw and processed data from neuroscience recordings [@NWB]. The data in NWB files are stored hierarchically, and each component of the hierarchy has a specific neurodata type that reflects the measurement modality (e.g, "Units" for spike trains, "ImageSeries" for video). Our conversion tool generates a SNUB display element for each supported neurodata type. Users can optionally restrict this process to a subset of the NWB hierarchy (e.g., include pose tracking while excluding electrophysiology, or include just a subset of electrophysiology measurements). 
