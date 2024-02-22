@@ -279,6 +279,7 @@ class ScatterPanel(Panel, HeaderMixin):
                 np.std(self.data[:, 2:], axis=0) + self.eps
             )
             enrichment = variables_zscore[self.is_selected].mean(0)
+            print(enrichment, self.data.shape, self.variable_labels)
             variable_order = [self.variable_labels[i] for i in np.argsort(-enrichment)]
             self.show_variable_menu(variable_order=variable_order)
 

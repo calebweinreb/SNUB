@@ -94,8 +94,6 @@ class TracePlot(Track):
             if not label in self.colors:
                 self.colors[label] = _random_color()
 
-        self.clearButton = QPushButton("Clear")
-        self.clearButton.clicked.connect(self.clear)
         self.dropDown = CheckableComboBox()
         self.dropDown.toggleSignal.connect(self.toggle_trace)
 
@@ -143,7 +141,6 @@ class TracePlot(Track):
         for trace_label in self.trace_labels:
             control_layout.addWidget(trace_label, alignment=Qt.AlignTop)
         control_layout.addWidget(self.dropDown, alignment=Qt.AlignTop)
-        control_layout.addWidget(self.clearButton, alignment=Qt.AlignTop)
         self.update_controls_geometry()
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMinimumSize(1, 1)
@@ -247,6 +244,9 @@ class TracePlot(Track):
         contextMenu.addSeparator()
 
         add_menu_item("Adjust line width", self.show_adjust_linewidth_dialog)
+        contextMenu.addSeparator()
+
+        add_menu_item("Hide all traces", self.clear)
 
         contextMenu.setStyleSheet(
             f"""
@@ -274,8 +274,6 @@ class TracePlot(Track):
         self.auto_yaxis_limits = state
         if state:
             self.update_plot()
-        else:
-            self.show_adjust_yaxis_dialog()
 
     def update_yaxis_limits(self, ymin, ymax):
         self.yaxis_limits = (ymin, ymax)
