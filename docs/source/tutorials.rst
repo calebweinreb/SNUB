@@ -209,11 +209,13 @@ Add spike-sorted ephys data
     renaming_dict = {old:new for new,old in enumerate(good_units)}
     spike_labels = np.array([renaming_dict[i] for i in spike_labels])
 
+    # combine spike times and labels into a single array
+    spike_data = np.vstack((spike_times,spike_labels)).T
+
     snub.io.add_spikeplot(
         project_directory, 
         'my_ephys_data',
-        spike_times,
-        spike_labels,
+        spike_data,
         labels=[str(i) for i in good_units],
         sort_method='rastermap',
         height_ratio=10)
@@ -260,4 +262,3 @@ Add a plot of mouse velocity
 
 
 Next: `How to use the interface <gui>`_.
-"""

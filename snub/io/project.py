@@ -5,6 +5,7 @@ import shutil
 import warnings
 import pickle
 import colorsys
+import cmapy
 import scipy.sparse
 from vidio import VideoReader
 
@@ -342,9 +343,14 @@ def edit_dataview_properties(project_directory, dataview_type, name, **kwargs):
     save_config(project_directory, config)
 
 
+def _samepath(path1, path2):
+    normalized_path1 = os.path.normcase(os.path.realpath(path1))
+    normalized_path2 = os.path.normcase(os.path.realpath(path2))
+    return normalized_path1 == normalized_path2
+
+
 def remove_dataview(project_directory, dataview_type, name, delete_data=False):
-    """Remove a data-view from the specified project and (optionally)
-    delete its data.
+    """Remove a data-view from the specified project and (optionally) delete its data.
 
     Parameters
     ----------
@@ -360,8 +366,9 @@ def remove_dataview(project_directory, dataview_type, name, delete_data=False):
     delete_data: bool, default=False
         Delete the data associated with the given data-view, which may
         be .avi, .npy or .hdf5 files depending on the type of data-view.
+        This is automatically prevented if the data is located outside
+        the project directory.
     """
-
     config = load_config(project_directory)
     index = _get_named_dataview_index(config, dataview_type, name)
     if index is None:
@@ -373,10 +380,19 @@ def remove_dataview(project_directory, dataview_type, name, delete_data=False):
     if delete_data:
         for key, value in config[dataview_type][index].items():
             if "path" in key:
-                data_path = os.path.join(project_directory, value)
-                if os.path.exists(data_path):
-                    print("Deleting", data_path)
-                    os.remove(data_path)
+                if os.path.dirname(value) == "":
+                    # relative path in the project directory
+                    print("Deleting", value)
+                    os.remove(os.path.join(project_directory, value))
+                elif _samepath(os.path.dirname(value), project_directory):
+                    # absolute path in the project directory
+                    print("Deleting", value)
+                    os.remove(value)
+                else:
+                    print(
+                        f"The data for this {dataview_type} is located outside the "
+                        "project directory and will not be deleted."
+                    )
     del config[dataview_type][index]
     print('Removed {} with the name "{}"'.format(dataview_type, name))
     save_config(project_directory, config)
@@ -385,7 +401,7 @@ def remove_dataview(project_directory, dataview_type, name, delete_data=False):
 def add_video(
     project_directory,
     videopath,
-    copy=True,
+    copy=False,
     name=None,
     fps=30,
     start_time=0,
@@ -402,48 +418,43 @@ def add_video(
         Project that the video should be added to.
 
     videopath : str
-        Path to an existing video. The video will be read as 8bit RGB.
-        Other video formats, such as 16bit depth or 16bit monochrome,
-        will have to be converted to 8bit RGB before they can be added.
-        Functions for doing so are provided in :py:mod:`snub.io.video_conversion`.
+        Path to an existing video. The video will be read as 8bit RGB. Other video
+        formats, such as 16bit depth or 16bit monochrome, will have to be converted to
+        8bit RGB before they can be added. Functions for doing so are provided in
+        :py:mod:`snub.io.video_conversion`.
 
-    copy: bool, default=True
-        It is recommended that all data for a given project is contained
-        within the project directory. Leave ``copy=True`` if the video file
-        is currently outside the project directory and you wish to copy it.
-        Otherwise if ``copy=False``, the config will store the relative path
-        from the project directory to the video file.
+    copy: bool, default=False
+        If ``copy=True``, the video will be copied to the project directory. Otherwise,
+        the video will be referenced in its current location.
 
     name: str, default=None
-        The name of the video, which is displayed in SNUB and can be used
-        to edit the config file. If no name is given, the video's filename
-        will be used.
+        The name of the video, which is displayed in SNUB and can be used to edit the
+        config file. If no name is given, the video's filename will be used.
 
     fps: float, default=30
-        The video framerate. This parameter is used in conjunction with
-        ``start_time`` to generate a timestamps file, unless an array of
-        timestamps is directly provided.
+        The video framerate. This parameter is used in conjunction with ``start_time``
+        to generate a timestamps file, unless an array of timestamps is directly
+        provided.
 
     start_time: float, default=0
-        The start time of the video (in seconds). This parameter is used
-        in conjunction with ``fps`` to generate a timestamps file, unless an
-        array of timestamps is directly provided.
+        The start time of the video (in seconds). This parameter is used in conjunction
+        with ``fps`` to generate a timestamps file, unless an array of timestamps is
+        directly provided.
 
     timestamps: str/array-like, default=None
-        Array of timestamps in units of seconds.
-        ``timestamps`` can either be an array, or the path to .npy file,
-        or the path to a text file with a timestamp on each line. If
-        ``timestamps=None``, the timestamps will be created from
-        ``fps`` and ``start_time``.
+        Array of timestamps in units of seconds. ``timestamps`` can either be an array,
+        or the path to .npy file, or the path to a text file with a timestamp on each
+        line. If ``timestamps=None``, the timestamps will be created from ``fps`` and
+        ``start_time``.
 
     size_ratio: int, default=1
         The relative space initially allocated to this data-view in the panel-stack.
         Spacing can also be adjusted within the browser.
 
     order: float, default=0
-        Determines the order of placement within the panel-stack.
-        Panels are arranged top-to-bottom (in column mode) or
-        left-to-right (row mode) by ascending rank of the ``order`` property.
+        Determines the order of placement within the panel-stack. Panels are arranged
+        top-to-bottom (in column mode) or left-to-right (row mode) by ascending rank of
+        the ``order`` property.
 
     initial_visibility: bool, default=True
         Whether the video is initially visible when the project is opened.
@@ -454,13 +465,15 @@ def add_video(
     props: dict
         video properties
     """
-    # check that project exists and video with given name does not exist
+    # check that video exists
     if not os.path.exists(videopath):
         raise AssertionError('The file "{}" does not exist'.format(videopath))
 
+    # set name to the video's filename if no name is given
     if name is None:
         name = os.path.splitext(os.path.basename(videopath))[0]
 
+    # check that project exists and a video with given name does not already exist
     config = load_config(project_directory)
     _confirm_no_existing_dataview(config, "video", name)
 
@@ -473,7 +486,6 @@ def add_video(
                 start_time, fps, video_length
             )
         )
-
     elif isinstance(timestamps, str):
         if timestamps.endswith(".npy"):
             timestamps = np.load(timestamps)
@@ -491,18 +503,18 @@ def add_video(
 
     # optionally copy video
     if copy:
-        videopath_rel = name + os.path.splitext(videopath)[1]
-        videopath_abs = os.path.join(project_directory, videopath_rel)
+        videopath = name + os.path.splitext(videopath)[1]
+        videopath_abs = os.path.join(project_directory, videopath)
         if not os.path.exists(videopath_abs):
             shutil.copy(videopath, videopath_abs)
             print("Copying video to " + videopath_abs)
     else:
-        videopath_rel = os.path.relpath(videopath, start=project_directory)
+        videopath = os.path.realpath(videopath)
 
     # add props to config
     props = {
         "name": name,
-        "video_path": videopath_rel,
+        "video_path": videopath,
         "timestamps_path": timestamps_path_rel,
         "size_ratio": size_ratio,
         "order": order,
@@ -836,8 +848,11 @@ def add_heatmap(
         The name of the heatmap displayed in SNUB and used
         for editing the config file.
 
-    data : ndarray
-        2D array where rows are variables and columns are time bins.
+    data : ndarray or str
+        2D array (or path to an array) where rows are variables and columns
+        are time bins. Note that if data is given as a path, it will not be
+        copied to the project directory. If you want to copy the data, load
+        it into memory and pass the array directly.
 
     time_intervals : ndarray, default=None
         Time interval (in seconds) associated with each column of the heatmap,
@@ -929,10 +944,16 @@ def add_heatmap(
     _confirm_no_existing_dataview(config, "heatmap", name)
 
     # save heatmap data
-    data_path = name + ".heatmap_data.npy"
-    data_path_abs = os.path.join(project_directory, data_path)
-    np.save(data_path_abs, data)
-    print("Saved heatmap data to " + data_path_abs)
+    if isinstance(data, str):
+        if not os.path.exists(data):
+            raise AssertionError('The file "{}" does not exist'.format(data))
+        data_path = os.path.realpath(data)
+        data = np.load(data_path)
+    else:
+        data_path = name + ".heatmap_data.npy"
+        save_path = os.path.join(project_directory, data_path)
+        np.save(save_path, data)
+        print(f"Saved heatmap data to {save_path}")
 
     # initialize/save time intervals
     if time_intervals is None:
@@ -992,15 +1013,11 @@ def add_heatmap(
     print("Saved row order to " + row_order_path_abs)
 
     # check that the colormap is valid
-    import cmapy
-
     try:
         cmapy.cmap(colormap)
     except:
         raise AssertionError(
-            '""{}"" is not a valid colormap. See https://matplotlib.org/stable/gallery/color/colormap_reference.html for a list of options'.format(
-                colormap
-            )
+            f'""{colormap}"" is not a valid colormap. See https://matplotlib.org/stable/gallery/color/colormap_reference.html for a list of options'
         )
     if vmin is None:
         vmin = float(np.nanmin(data))
@@ -1044,8 +1061,7 @@ def add_heatmap(
 def add_spikeplot(
     project_directory,
     name,
-    spike_times,
-    spike_labels,
+    spike_data,
     heatmap_range=10,
     window_size=0.2,
     window_step=0.05,
@@ -1066,16 +1082,14 @@ def add_spikeplot(
     initial_visibility=True,
 ):
     """Add a spike plot to your SNUB project.
-    By default, spike plots convert to heatmaps when sufficiently zoomed out.
-    For electrophysiology, this corresponds to showing firing *rates* as
-    opposed to firing *events* (see :py:func:`snub.io.firing_rates`).
-    Most of the options for :py:func:`snub.io.add_heatmap`
-    can also be used here.
+    By default, spike plots convert to heatmaps when sufficiently zoomed out. For
+    electrophysiology, this corresponds to showing firing *rates* as opposed to firing
+    *events* (see :py:func:`snub.io.firing_rates`). Most of the options for
+    :py:func:`snub.io.add_heatmap` can also be used here.
 
-    If plotting neural data, it is helpful to sort the rows
-    so that correlated neurons are clustered together (use the ``sort_method``
-    argument; see :py:func:`snub.io.sort` for options; the firing
-    rates are used for sorting).
+    If plotting neural data, it is helpful to sort the rows so that correlated neurons
+    are clustered together (use ``sort_method`` argument; see :py:func:`snub.io.sort`
+    for options; the firing rates are used for sorting).
 
     Parameters
     ----------
@@ -1083,21 +1097,19 @@ def add_spikeplot(
         Project that the spike plot should be added to.
 
     name: str
-        The name of the spike plot displayed in SNUB and used
-        for editing the config file.
+        Name of the spike plot displayed in SNUB and used for editing the config file.
 
-    spike_times : ndarray
-        Spike times (in seconds) for all units. The source of each spike is
-        input separately using ``spike_labels``
-
-    spike_labels: ndarray
-        The source/label for each spike in ``spike_times``. The maximum
-        value of this array determines the number of rows in the heatmap.
+    spike_data : ndarray or str
+        Spike times and unit labels as a ``(N,2)`` array or a path to such an array. The
+        first column contains the spike times (in seconds) and the second column contains
+        the unit labels (as integers). Note that if spike_data is given as a path, it
+        will not be copied to the project directory. If you want to copy the data, load
+        it into memory and pass the array directly.
 
     heatmap_range: float, default=10
-        Defines the zoom-level at which the spike-view converts to
-        a heatmap-view. The transition occurs when the currently
-        visible range in the timeline is equal to ``heatmap_range`` (in seconds)
+        Defines the zoom-level at which the spike-view converts to a heatmap-view. The
+        transition occurs when the currently visible range in the timeline is equal to
+        ``heatmap_range`` (in seconds)
 
     window_size: float, default=0.2
         Length (in seconds) of the sliding window used to calculate firing rates
@@ -1113,19 +1125,24 @@ def add_spikeplot(
     -------
     props: dict
         spikeplot properties
-
     """
     # check that project exists and a spike plot with the given name does not already exist
     config = load_config(project_directory)
     _confirm_no_existing_dataview(config, "spikeplot", name)
 
-    # save spike times and spike labels
-    spike_labels = spike_labels.astype(int)
-    spike_data = np.vstack((spike_times, spike_labels)).T
-    spikes_path = name + ".spikeplot_spikes.npy"
-    spikes_path_abs = os.path.join(project_directory, spikes_path)
-    np.save(spikes_path_abs, spike_data)
-    print("Saved spike data to " + spikes_path_abs)
+    # save spike data
+    if isinstance(spike_data, str):
+        if not os.path.exists(spike_data):
+            raise AssertionError('The file "{}" does not exist'.format(spike_data))
+        spike_data = np.load(spike_data)
+        spikes_path = os.path.realpath(spike_data)
+    else:
+        spikes_path = name + ".spikeplot_spikes.npy"
+        save_path = os.path.join(project_directory, spikes_path)
+        np.save(save_path, spike_data)
+        print(f"Saved spike data to {save_path}")
+
+    spike_times, spike_labels = spike_data[:, 0], spike_data[:, 1].astype(int)
 
     # save heatmap
     from snub.io import firing_rates
@@ -1185,15 +1202,11 @@ def add_spikeplot(
     print("Saved row order to " + row_order_path_abs)
 
     # check that the colormap is valid
-    import cmapy
-
     try:
         cmapy.cmap(colormap)
     except:
         raise AssertionError(
-            '""{}"" is not a valid colormap. See https://matplotlib.org/stable/gallery/color/colormap_reference.html for a list of options'.format(
-                colormap
-            )
+            f'""{colormap}"" is not a valid colormap. See https://matplotlib.org/stable/gallery/color/colormap_reference.html for a list of options'
         )
 
     if vmin is None:
@@ -1237,7 +1250,7 @@ def add_roiplot(
     name,
     rois,
     videopaths,
-    copy_video=True,
+    copy_video=False,
     heatmap_name=None,
     fps=30,
     start_time=0,
@@ -1274,11 +1287,7 @@ def add_roiplot(
         same dimensions (W,H) as `rois`.
 
     copy_video: bool, default=True
-        It is recommended that all data for a given project is contained
-        within the project directory. Leave ``copy_video=True`` if the video
-        file  is currently outside the project directory and you wish to copy it.
-        Otherwise if ``copy_video=False``, the config will store the relative path
-        from the project directory to the video file.
+        Whether to copy the video to the project directory.
 
     fps: float, default=30
         The video framerate. This parameter is used in conjunction with
