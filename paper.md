@@ -12,6 +12,9 @@ authors:
   - name: Mohammed Abdal Monium Osman
     orcid: 0000-0001-8606-6518
     affiliation: 1
+  - name: Maya Jay
+    orcid: 0000-0001-5537-6476
+    affiliation: 1
   - name: Sandeep Robert Datta
     orcid: 0000-0002-8068-3862
     affiliation: 1
@@ -53,8 +56,10 @@ SNUB is a flexible general-purpose tool that complements more specialized packag
 
 The graphics in SNUB are powered by vispy [@vispy]. SNUB includes wrappers for several dimensionality reduction methods, including rastermap [@rastermap] for ordering raster plots and UMAP [@umap] for 2D scatter plots. Fast video loading is enabled by vidio [@vidio]. The app icon was adapted from a drawing contributed to scidraw by Luigi Petrucco  [@petrucco_2020_3925903].
 
+The SNUB documntation includes a set of tutorials that make use of original data collected in the Datta lab between 2020 and 2022. All experimental procedures were approved by the Harvard Medical School Institutional Animal Care and Use Committee (Protocol Number 04930) and were performed in compliance with the ethical regulations of Harvard University as well as the Guide for Animal Care and Use of Laboratory Animals. Experimental protocols and processed data have been deposited on [Zenodo](https://zenodo.org/records/10578025) [@weinreb_2024_10578025). 
+
 # Acknowledgements
 
-We are grateful to Mohammed Osman for contributions to the 3D keypoint visualization and NWB conversion tools. CW is a Fellow of The Jane Coffin Childs Memorial Fund for Medical Research. SRD is supported by NIH grants U19NS113201, RF1AG073625, R01NS114020, the Brain Research Foundation, and the Simons Collaboration on the Global Brain.
+CW is a Fellow of The Jane Coffin Childs Memorial Fund for Medical Research. SRD is supported by NIH grants U19NS113201, RF1AG073625, R01NS114020, the Brain Research Foundation, and the Simons Collaboration on the Global Brain.
 
 # References
