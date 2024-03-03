@@ -42,9 +42,9 @@ The interface is divided into synchronized windows that each show a different da
 
 We provide dedicated widgets and loading functions for exploring raw video, 3D animal pose, behavior annotations, electrophysiology recordings, and calcium imaging data - either as a raster or as a super-position of labeled regions of interest (ROIs). More broadly, SNUB can display any data that takes the form of a heatmap, scatter plot, video, or collection of named temporally-varying signals. 
 
-In addition to the front-end GUI, we include a library of functions that ingest data (or paths to the data) and visualization parameters, and then orgnaize these in a format that is quickly readable by the SNUB viewer. The following code, for example, creates a project with paired electrophysiology and video data.
+In addition to the front-end GUI, we include a library of functions that ingest data (or paths to the data) and visualization parameters, and then organize these in a format that is quickly readable by the SNUB viewer. The following code, for example, creates a project with paired electrophysiology and video data.
 
-```
+```python
 snub.io.create_project(project_directory, duration=1800)
 snub.io.add_video(project_directory, 'path/to/my_video.avi', name='IR_camera')
 snub.io.add_spikeplot(project_directory, 'my_ephys_data', spike_data)
@@ -54,12 +54,13 @@ We also provide a rudimentary tool for automatically generating SNUB datasets fr
 
 SNUB is a flexible general-purpose tool that complements more specialized packages such as rastermap [@rastermap] and Bento [@bento]. The rastermap interface, for example, is hard-coded for the display of neural activity rasters, ROIs and 2D embeddings of neural activity. Bento is hard-coded for the display of neural activity rasters, behavioral videos and behavioral annotations. SNUB can reproduce either of these configurations and is especially useful when one wishes to include additional types of data or more directly customize the way that data is rendered.
 
-The graphics in SNUB are powered by vispy [@vispy]. SNUB includes wrappers for several dimensionality reduction methods, including rastermap [@rastermap] for ordering raster plots and UMAP [@umap] for 2D scatter plots. Fast video loading is enabled by vidio [@vidio]. The app icon was adapted from a drawing contributed to scidraw by Luigi Petrucco  [@petrucco_2020_3925903].
+The graphics in SNUB are powered by vispy [@vispy]. SNUB includes wrappers for several dimensionality reduction methods, including rastermap [@rastermap] for ordering raster plots and UMAP [@umap] for 2D scatter plots. Fast video loading is enabled by vidio [@vidio]. 
 
-The SNUB documntation includes a set of tutorials that make use of original data collected in the Datta lab between 2020 and 2022. All experimental procedures were approved by the Harvard Medical School Institutional Animal Care and Use Committee (Protocol Number 04930) and were performed in compliance with the ethical regulations of Harvard University as well as the Guide for Animal Care and Use of Laboratory Animals. Experimental protocols and processed data have been deposited on [Zenodo](https://zenodo.org/records/10578025) [@weinreb_2024_10578025). 
+The SNUB documentation includes a set of tutorials that make use of original data collected in the Datta lab between 2020 and 2022. All experimental procedures were approved by the Harvard Medical School Institutional Animal Care and Use Committee (Protocol Number 04930) and were performed in compliance with the ethical regulations of Harvard University as well as the Guide for Animal Care and Use of Laboratory Animals. Experimental protocols and processed data have been deposited on [Zenodo](https://zenodo.org/records/10578025) [@weinreb_2024_10578025). 
 
 # Acknowledgements
 
-CW is a Fellow of The Jane Coffin Childs Memorial Fund for Medical Research. SRD is supported by NIH grants U19NS113201, RF1AG073625, R01NS114020, the Brain Research Foundation, and the Simons Collaboration on the Global Brain.
+CW is a Fellow of The Jane Coffin Childs Memorial Fund for Medical Research. SRD is supported by NIH grants U19NS113201, RF1AG073625, R01NS114020, the Brain Research Foundation, and the Simons Collaboration on the Global Brain. The SNUB app icon was adapted from a drawing contributed to scidraw by Luigi Petrucco  [@petrucco_2020_3925903].
+
 
 # References
