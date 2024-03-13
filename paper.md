@@ -56,7 +56,7 @@ SNUB is a flexible general-purpose tool that complements more specialized packag
 
 The graphics in SNUB are powered by vispy [@vispy]. SNUB includes wrappers for several dimensionality reduction methods, including rastermap [@Stringer2023.07.25.550571] for ordering raster plots and UMAP [@umap] for 2D scatter plots. Fast video loading is enabled by VidIO [@vidio]. 
 
-The SNUB documentation includes a set of tutorials that make use of original data collected in the Datta lab between 2020 and 2022. All experimental procedures were approved by the Harvard Medical School Institutional Animal Care and Use Committee (Protocol Number 04930) and were performed in compliance with the ethical regulations of Harvard University as well as the Guide for Animal Care and Use of Laboratory Animals. Experimental protocols and processed data have been deposited on [Zenodo](https://zenodo.org/records/10578025) [@weinreb_2024_10578025). 
+The SNUB documentation includes a set of tutorials that make use of original data collected in the Datta lab between 2020 and 2022. All experimental procedures were approved by the Harvard Medical School Institutional Animal Care and Use Committee (Protocol Number 04930) and were performed in compliance with the ethical regulations of Harvard University as well as the Guide for Animal Care and Use of Laboratory Animals. Experimental protocols and processed data have been deposited on Zenodo [@weinreb_2024_10578025]. 
 
 # Acknowledgements
 
