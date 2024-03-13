@@ -34,17 +34,17 @@ A core goal of neuroscience is to discover temporal patterns in behavior and neu
 
 # Statement of need
 
-Direct inspection of behavior and neurophysiology recordings is hard because the data are typically high-dimensional, come in a variety of modalities (such as raw video, pose tracking, spike trains, calcium traces, etc.) with different sampling rates and methods of visualization. SNUB lowers the activation energy for data exploration by integrating these data streams into a single easy-to-navigate interface. The main intended user is a researcher who has collected data and started to analyze it (e.g. in python). They may already be generating static versions of the visualizations afforded by SNUB, such as aligned heatmaps and trace plots, and now would like a frictionless way to pan/zoom around these plots and keep all the data views linked together. Importantly, SNUB should be thought of as akin to a plotting library, rather than a data analysis tool. 
+Direct inspection of behavior and neurophysiology recordings is hard because the data are typically high-dimensional and come in a variety of modalities (such as raw video, pose tracking, spike trains, calcium traces, etc.) with different sampling rates and methods of visualization. SNUB lowers the activation energy for data exploration by integrating these data streams into a single easy-to-navigate interface. The main intended user is a researcher who has collected data and started to analyze it (e.g. in Python). They may already be generating static versions of the visualizations afforded by SNUB, such as aligned heatmaps and trace plots, and now would like a frictionless way to pan/zoom around these plots and keep all the data views linked together. Importantly, SNUB should be thought of as akin to a plotting library, rather than a data analysis tool. 
 
 The interface is divided into synchronized windows that each show a different data stream. The linked data views allow users to quickly inspect the relationships between experimental phenomena, such as the behaviors that occur during a particular pattern of neural activity (\autoref{fig:screenshot}). 
 
 ![Screenshot from SNUB.\label{fig:screenshot}](docs/media/screenshot.png)
 
-We provide dedicated widgets and loading functions for exploring raw video, 3D animal pose, behavior annotations, electrophysiology recordings, and calcium imaging data - either as a raster or as a super-position of labeled regions of interest (ROIs). More broadly, SNUB can display any data that takes the form of a heatmap, scatter plot, video, or collection of named temporally-varying signals. 
+We provide dedicated widgets and loading functions for exploring raw video, 3D animal pose, behavior annotations, electrophysiology recordings, and calcium imaging data—either as a raster or as a super-position of labeled regions of interest (ROIs). More broadly, SNUB can display any data that takes the form of a heatmap, scatter plot, video, or collection of named temporally-varying signals. 
 
 In addition to the front-end GUI, we include a library of functions that ingest data (or paths to the data) and visualization parameters, and then organize these in a format that is quickly readable by the SNUB viewer. The following code, for example, creates a project with paired electrophysiology and video data.
 
-```python
+```Python
 snub.io.create_project(project_directory, duration=1800)
 snub.io.add_video(project_directory, 'path/to/my_video.avi', name='IR_camera')
 snub.io.add_spikeplot(project_directory, 'my_ephys_data', spike_data)
@@ -54,7 +54,7 @@ We also provide a rudimentary tool for automatically generating SNUB datasets fr
 
 SNUB is a flexible general-purpose tool that complements more specialized packages such as rastermap [@Stringer2023.07.25.550571] and Bento [@bento]. The rastermap interface, for example, is hard-coded for the display of neural activity rasters, ROIs and 2D embeddings of neural activity. Bento is hard-coded for the display of neural activity rasters, behavioral videos and behavioral annotations. SNUB can reproduce either of these configurations and is especially useful when one wishes to include additional types of data or more directly customize the way that data is rendered.
 
-The graphics in SNUB are powered by vispy [@vispy]. SNUB includes wrappers for several dimensionality reduction methods, including rastermap [@Stringer2023.07.25.550571] for ordering raster plots and UMAP [@umap] for 2D scatter plots. Fast video loading is enabled by vidio [@vidio]. 
+The graphics in SNUB are powered by vispy [@vispy]. SNUB includes wrappers for several dimensionality reduction methods, including rastermap [@Stringer2023.07.25.550571] for ordering raster plots and UMAP [@umap] for 2D scatter plots. Fast video loading is enabled by VidIO [@vidio]. 
 
 The SNUB documentation includes a set of tutorials that make use of original data collected in the Datta lab between 2020 and 2022. All experimental procedures were approved by the Harvard Medical School Institutional Animal Care and Use Committee (Protocol Number 04930) and were performed in compliance with the ethical regulations of Harvard University as well as the Guide for Animal Care and Use of Laboratory Animals. Experimental protocols and processed data have been deposited on [Zenodo](https://zenodo.org/records/10578025) [@weinreb_2024_10578025). 
 
