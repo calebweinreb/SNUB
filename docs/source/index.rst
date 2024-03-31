@@ -1,6 +1,10 @@
 SNUB (Systems Neuro Browser)
 ============================
 
+reStructuredText:
+.. image:: https://joss.theoj.org/papers/10.21105/joss.06187/status.svg
+   :target: https://doi.org/10.21105/joss.06187
+   
 `Github Repository <https://github.com/calebweinreb/SNUB>`_
 
 .. image:: ../media/use_case1.gif
