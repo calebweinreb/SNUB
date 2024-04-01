@@ -31,9 +31,7 @@ def numpy_to_qpixmap(image: np.ndarray) -> QPixmap:
 class VideoPanel(Panel, HeaderMixin):
     def __init__(self, config, video_path=None, timestamps_path=None, **kwargs):
         super().__init__(config, **kwargs)
-        self.video_frame = VideoFrame(
-            os.path.join(config["project_directory"], video_path)
-        )
+        self.video_frame = VideoFrame(video_path)
         self.timestamps = np.load(
             os.path.join(config["project_directory"], timestamps_path)
         )
