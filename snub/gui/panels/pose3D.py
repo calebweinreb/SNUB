@@ -32,38 +32,26 @@ class Pose3DPanel(Panel, HeaderMixin):
     ):
         super().__init__(config, **kwargs)
 
-        self.data = np.load(os.path.join(config["project_directory"], data_path))
-        self.intervals = np.load(
-            os.path.join(config["project_directory"], intervals_path)
-        )
+        self.data = np.load(data_path)
+        self.intervals = np.load(intervals_path)
+
         if labels_path is None:
             self.labels = [str(i) for i in range(self.data.shape[0])]
         else:
-            self.labels = (
-                open(os.path.join(config["project_directory"], labels_path), "r")
-                .read()
-                .split("\n")
-            )
+            self.labels = open(labels_path, "r").read().split("\n")
         if links_path is None:
             self.link_indexes = np.zeros((0, 2), dtype=int)
         else:
-            self.link_indexes = np.load(
-                os.path.join(config["project_directory"], links_path)
-            ).astype(int)
+            self.link_indexes = np.load(links_path).astype(int)
         if joint_colors_path is None:
             self.joint_colors = np.ones((self.data.shape[0], 3))
         else:
-            self.joint_colors = np.load(
-                os.path.join(config["project_directory"], joint_colors_path)
-            )
+            self.joint_colors = np.load(joint_colors_path)
+
         if link_colors_path is None:
             self.link_colors = np.ones((len(self.links) * 2, 3))
         else:
-            self.link_colors = np.repeat(
-                np.load(os.path.join(config["project_directory"], link_colors_path)),
-                2,
-                axis=0,
-            )
+            self.link_colors = np.repeat(np.load(link_colors_path), 2, axis=0)
 
         self.joint_size = joint_size
         self.link_width = link_width

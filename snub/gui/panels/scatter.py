@@ -63,7 +63,7 @@ class ScatterPanel(Panel, HeaderMixin):
         self.sort_nodes_by_variable = True
         self.show_marker_trail = False
 
-        self.data = np.load(os.path.join(config["project_directory"], data_path))
+        self.data = np.load(data_path)
         self.data[:, 2:4] = self.data[:, 2:4] + np.array([-self.eps, self.eps])
         self.is_selected = np.zeros(self.data.shape[0]) > 0
         self.plot_order = np.arange(self.data.shape[0])
