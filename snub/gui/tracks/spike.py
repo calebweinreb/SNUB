@@ -33,7 +33,7 @@ class SpikePlot(Heatmap):
     ):
         super().__init__(config, selected_intervals, data_path=heatmap_path, **kwargs)
         self.heatmap_range = heatmap_range
-        spike_data = np.load(os.path.join(config["project_directory"], spikes_path))
+        spike_data = np.load(spikes_path)
         self.spike_times, self.spike_labels = spike_data[:, 0], spike_data[:, 1].astype(
             int
         )

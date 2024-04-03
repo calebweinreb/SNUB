@@ -258,19 +258,13 @@ class Heatmap(Track):
         self.add_traceplot = add_traceplot
         self.min_step = config["min_step"]
 
-        self.data = np.load(os.path.join(config["project_directory"], data_path))
-        self.intervals = np.load(
-            os.path.join(config["project_directory"], intervals_path)
-        )
+        self.data = np.load(data_path)
+        self.intervals = np.load(intervals_path)
 
         if labels_path is None:
             self.labels = [str(i) for i in range(self.data.shape[0])]
         else:
-            self.labels = (
-                open(os.path.join(config["project_directory"], labels_path), "r")
-                .read()
-                .split("\n")
-            )
+            self.labels = open(labels_path, "r").read().split("\n")
 
         if row_colors is None:
             row_colors = [_random_color() for i in range(self.data.shape[0])]
@@ -279,9 +273,8 @@ class Heatmap(Track):
         if row_order_path is None:
             self.row_order = np.arange(self.data.shape[0])
         else:
-            self.row_order = np.load(
-                os.path.join(config["project_directory"], row_order_path)
-            )
+            self.row_order = np.load(row_order_path)
+
         self.initial_row_order = self.row_order.copy()
 
         if vertical_range is None:

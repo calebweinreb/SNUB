@@ -8,6 +8,16 @@ from snub.gui.stacks import PanelStack, TrackStack
 from snub.gui.tracks import TracePlot
 from snub.gui.help import HelpMenu
 
+WIDGET_NAMES = [
+    "heatmap",
+    "video",
+    "traceplot",
+    "spikeplot",
+    "roiplot",
+    "scatter",
+    "pose3D",
+]
+
 
 def set_style(app):
     # https://www.wenzhaodesign.com/devblog/python-pyside2-simple-dark-theme
@@ -160,18 +170,20 @@ class ProjectTab(QWidget):
 
     def validate_and_autofill_config(self, config):
         error_messages = []
-        config["project_directory"] = self.project_directory
 
+        # check for required global keys
         for k in ["bounds"]:
             if not k in config:
                 error_messages.append('config is missing the key "{}"'.format(k))
 
+        # initialize current time if not provided
         if not "init_current_time" in config:
             if "bounds" in config:
                 config["init_current_time"] = config["bounds"][0]
             else:
                 config["init_current_time"] = 0
 
+        # autofill missing keys
         default_config = {
             "layout_mode": "columns",
             "min_step": 1 / 30,
@@ -191,11 +203,11 @@ class ProjectTab(QWidget):
             "video": [],
             "markers": {},
         }
-
         for key, value in default_config.items():
             if not key in config:
                 config[key] = value
 
+        # check for required keys in each widget
         for widget_name, requred_keys in {
             "heatmap": ["name", "data_path", "intervals_path", "add_traceplot"],
             "video": ["name", "video_path", "timestamps_path"],
@@ -210,6 +222,14 @@ class ProjectTab(QWidget):
                         error_messages.append(
                             '{} is missing the key "{}"'.format(widget_name, k)
                         )
+
+        # resolve paths
+        for widget_name in WIDGET_NAMES:
+            for widget_config in config[widget_name]:
+                for k, v in widget_config.items():
+                    if k.endswith("_path"):
+                        if not os.path.isabs(v):
+                            widget_config[k] = os.path.join(self.project_directory, v)
 
         return config, error_messages
 

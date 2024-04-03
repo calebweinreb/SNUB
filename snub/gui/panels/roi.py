@@ -56,19 +56,13 @@ class ROIPanel(Panel, HeaderMixin):
         self.current_frame_index = None
         self.is_visible = True
 
-        self.rois = load_npz(os.path.join(config["project_directory"], rois_path))
-        self.timestamps = np.load(
-            os.path.join(config["project_directory"], timestamps_path)
-        )
+        self.rois = load_npz(rois_path)
+        self.timestamps = np.load(timestamps_path)
 
         if labels_path is None:
             self.labels = [str(i) for i in range(self.rois.shape[0])]
         else:
-            self.labels = (
-                open(os.path.join(config["project_directory"], labels_path), "r")
-                .read()
-                .split("\n")
-            )
+            self.labels = open(labels_path, "r").read().split("\n")
 
         self.adjust_colormap_dialog = AdjustColormapDialog(self, self.vmin, self.vmax)
         self.adjust_colormap_dialog.new_range.connect(self.update_colormap_range)
@@ -97,8 +91,7 @@ class ROIPanel(Panel, HeaderMixin):
             )
 
         self.vids = {
-            name: VideoReader(os.path.join(config["project_directory"], video_path))
-            for name, video_path in video_paths.items()
+            name: VideoReader(video_path) for name, video_path in video_paths.items()
         }
 
         self.dropDown = QComboBox()
