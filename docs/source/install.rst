@@ -2,12 +2,16 @@ Installation
 ============
 
 Install Conda
-----------------
+-------------
 
 Install `Anaconda <https://docs.anaconda.com/anaconda/install/index.html>`_ or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_. Create and activate an environment called ``snub`` with python≥3.8::
 
    conda create -n snub python=3.8
    conda activate snub
+
+.. note::
+   Python version 3.8 is required for Linux. For Windows and MacOS, any version ≥3.8 should work.
+
 
 
 Install SNUB

@@ -17,6 +17,9 @@ conda create -n snub python=3.8
 conda activate snub
 pip install systems-neuro-browser
 ```
+
+**Note: Python version 3.8 is required for Linux. For Windows and MacOS, any version ≥3.8 should work.**
+
 To speed up selections, `pip install ncls`. To install optional developer dependencies, `pip install systems-neuro-browser[dev]`. The docs include more detailed [installation instructions](https://snub.readthedocs.io/en/latest/install.html).
 
 ## Getting Started
