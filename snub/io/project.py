@@ -503,11 +503,13 @@ def add_video(
 
     # optionally copy video
     if copy:
-        videopath = name + os.path.splitext(videopath)[1]
-        videopath_abs = os.path.join(project_directory, videopath)
+        videopath_abs = os.path.join(
+            project_directory, name + os.path.splitext(videopath)[1]
+        )
         if not os.path.exists(videopath_abs):
             shutil.copy(videopath, videopath_abs)
             print("Copying video to " + videopath_abs)
+        videopath = name + os.path.splitext(videopath)[1]
     else:
         videopath = os.path.realpath(videopath)
 
