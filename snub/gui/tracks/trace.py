@@ -78,7 +78,7 @@ class TracePlot(Track):
         if data is not None:
             self.data = data
         else:
-            self.data = pickle.load(open(data_path), "rb")
+            self.data = pickle.load(open(data_path, "rb"))
 
         if initial_visible_traces is not None:
             self.visible_traces = set(initial_visible_traces)
