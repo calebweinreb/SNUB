@@ -53,7 +53,7 @@ class TracePlot(Track):
         bound_rois="",
         initial_visible_traces=None,
         controls_padding_right=10,
-        colors={},
+        trace_colors={},
         linewidth=1,
         yaxis_width=30,
         controls_padding_top=5,
@@ -87,7 +87,7 @@ class TracePlot(Track):
         else:
             self.visible_traces = set([])
 
-        self.colors = dict(colors)
+        self.colors = dict(trace_colors)
         for label in self.data:
             if not label in self.colors:
                 self.colors[label] = _random_color()
