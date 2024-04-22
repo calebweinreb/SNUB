@@ -480,6 +480,7 @@ class MainWindow(QMainWindow):
 
         if file_name:
             try:
+                self.deselect_all()
                 intervals = np.loadtxt(file_name, delimiter=",", skiprows=1)
                 if len(intervals) > 0:
                     is_selected = np.ones(len(intervals)) > 0
