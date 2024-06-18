@@ -103,15 +103,8 @@ class Annotator(Track):
             font_size=label_font_size,
             parent=self,
         )
-
-        self.annotation_intervals = []
-        for k in self.labels:
-            intervals = annotations[k]
-            if len(intervals) > 0:
-                index = IntervalIndex(intervals=np.array(intervals))
-            else:
-                index = IntervalIndex()
-            self.annotation_intervals.append(index)
+        self.annotation_intervals = [IntervalIndex() for k in self.labels]
+        self._load(data_path)
 
     def paintEvent(self, event):
         num_labels = len(self.labels)
@@ -180,7 +173,7 @@ class Annotator(Track):
         self.drag_initial_time = None
         self.drag_label_ix = None
         if self.autosave:
-            self.save_annotations()
+            self._save()
 
     def drag_move(self, t, mode):
         if self.drag_mode == mode:
@@ -198,15 +191,31 @@ class Annotator(Track):
         t = position_to_time(self.current_range, self.width(), p)
         return np.clip(t, *self.bounds)
 
-    def save_annotations(self, save_path=None):
+    def _save(self, file_name=None):
         annotations = {}
         for ix, label in enumerate(self.labels):
             annotations[label] = self.annotation_intervals[ix].intervals.tolist()
+        if file_name is None:
+            file_name = self.data_path
+        with open(file_name, "w") as f:
+            json.dump(annotations, f, indent=4)
 
-        if save_path is None:
-            save_path = self.data_path
-        with open(save_path, "w") as f:
-            json.dump(annotations, f)
+    def _load(self, file_name):
+        with open(file_name, "r") as f:
+            annotations = json.load(f)
+
+            if not set(annotations.keys()) == set(self.labels):
+                error_msg = (
+                    "The imported labels must match the labels for this widget.\n\n"
+                    f"Imported labels:\n{list(annotations.keys())} "
+                    f"\n\nRequired labels:\n{self.labels}"
+                )
+                QMessageBox.warning(self, "Error", error_msg)
+                return
+            else:
+                for ix, label in enumerate(self.labels):
+                    self.annotation_intervals[ix].set_intervals(annotations[label])
+                self.update()
 
     def contextMenuEvent(self, event):
         contextMenu = QMenu(self)
@@ -254,10 +263,48 @@ class Annotator(Track):
         self.autosave = state
 
     def export_annotations(self):
-        pass
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_name, _ = QFileDialog.getSaveFileName(
+            self, "Export Annotations", "", "JSON Files (*.json)", options=options
+        )
+        if file_name:
+            if not file_name.lower().endswith(".json"):
+                file_name += ".json"
+            try:
+                self._save(file_name=file_name)
+                QMessageBox.about(self, "Success", f"Saved annotations to {file_name}")
+            except Exception as e:
+                QMessageBox.warning(
+                    self, "Error", f"Failed to export annotations: {str(e)}"
+                )
 
     def import_annotations(self):
-        pass
+        warning_reply = QMessageBox.question(
+            self,
+            "Warning",
+            "Are you sure you want to import? All current annotations will be overwritten.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+
+        if warning_reply == QMessageBox.StandardButton.Ok:
+            options = QFileDialog.Options()
+            options |= QFileDialog.DontUseNativeDialog
+            file_name, _ = QFileDialog.getOpenFileName(
+                self,
+                "Import Annotations",
+                "",
+                "All Files (*);;JSON Files (*.json)",
+                options=options,
+            )
+            if file_name:
+                try:
+                    self._load(file_name)
+                    self._save()
+                except Exception as e:
+                    QMessageBox.warning(
+                        self, "Error", f"Failed to import annotations: {str(e)}"
+                    )
 
 
 class HeadedAnnotator(TrackGroup):
