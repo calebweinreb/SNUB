@@ -187,6 +187,7 @@ def create_project(
         "spikeplot": [],
         "traceplot": [],
         "roiplot": [],
+        "annotator": [],
     }
 
     # create the project directory and config file
@@ -1708,5 +1709,103 @@ def add_pose3D(
     }
     config["pose3D"].append(props)
     print('Added 3D pose viewer "{}"\n'.format(name))
+    save_config(project_directory, config)
+    return props
+
+
+def add_annotator(
+    project_directory,
+    name,
+    labels=None,
+    autosave=True,
+    annotations=None,
+    label_color=(255, 255, 255),
+    off_color=(0, 0, 0),
+    on_color=(255, 0, 0),
+    label_font_size=12,
+    height_ratio=1,
+    order=0,
+    initial_visibility=True,
+):
+    """Add a widget for annotating frames of a video.
+
+    Parameters
+    ----------
+    project_directory : str
+        Project that the heatmap should be added to.
+
+    name: str
+        The name of the heatmap displayed in SNUB and used
+        for editing the config file.
+
+    labels: list of str, default=None
+        Classes to annotate. Required if `annotations` is not given.
+
+    autosave: bool, default=True
+        Whether to automatically save annotations after every change.
+
+    annotations: dict, default=None
+        Initial annotations, as dict mapping class names of lists of intervals.
+        Required if `labels` is not given.
+
+    label_color: (int,int,int), default=(255,255,255)
+        Color of the labels superimposed on the annotator heatmap.
+
+    off_color: (int,int,int), default=(0,0,0)
+        Color of "off" frames (i.e. those outside an annotated interval)
+
+    on_color: (int,int,int), default=(255,0,0)
+        Color of "on" frames (i.e. those inside an annotated interval)
+
+    label_font_size: int, default=12
+        Size of the labels superimposed on the annotator heatmap.
+
+    height_ratio: int, default=1
+        The relative height initially allocated to this data-view in the track-stack.
+        Spacing can also be adjusted within the browser.
+
+    order: float, default=0
+        Determines the order of placement within the track-stack.
+
+    initial_visibility: bool, default=True
+        Whether this data-view is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
+
+    Returns
+    -------
+    props: dict
+        annotator properties
+    """
+
+    # check that project exists and an annotator with the given name does not already exist
+    config = load_config(project_directory)
+    _confirm_no_existing_dataview(config, "annotator", name)
+
+    # save initial data file
+    if not annotations:
+        assert labels, "Either `labels` or `annotations` is required."
+        assert len(labels) == len(set(labels)), "Labels are not unique"
+        annotations = {label: [] for label in labels}
+
+    data_path = name + ".annotaton_data.json"
+    save_path = os.path.join(project_directory, data_path)
+    json.dump(annotations, open(save_path, "w"))
+    print(f"Saved annotation data to {save_path}")
+
+    # add props to config
+    props = {
+        "name": name,
+        "data_path": data_path,
+        "autosave": autosave,
+        "label_color": label_color,
+        "off_color": off_color,
+        "on_color": on_color,
+        "label_font_size": label_font_size,
+        "height_ratio": height_ratio,
+        "initial_visibility": initial_visibility,
+    }
+
+    config["annotator"].append(props)
+    print('Added annotator "{}"\n'.format(name))
     save_config(project_directory, config)
     return props

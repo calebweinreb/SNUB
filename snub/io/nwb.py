@@ -461,11 +461,12 @@ def add_ephys_units(project_directory, obj, name, start_time, end_time, options)
     spike_labels = np.hstack(
         [np.ones(len(spikes)) * i for i, spikes in enumerate(spike_times_per_unit)]
     )
+    spike_data = np.vstack([spike_times, spike_labels]).T
+
     snub.io.project.add_spikeplot(
         project_directory,
         name,
-        spike_times,
-        spike_labels,
+        spike_data,
         **options,
     )
 

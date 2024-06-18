@@ -10,3 +10,4 @@ from .base import (
 from .trace import TracePlot, HeadedTracePlot
 from .heatmap import Heatmap, HeatmapTraceGroup, HeadedHeatmap
 from .spike import SpikePlot, HeadedSpikePlot, SpikePlotTraceGroup
+from .annotator import Annotator, HeadedAnnotator

@@ -9,6 +9,7 @@ from snub.gui.tracks import TracePlot
 from snub.gui.help import HelpMenu
 
 WIDGET_NAMES = [
+    "annotator",
     "heatmap",
     "video",
     "traceplot",
@@ -199,6 +200,7 @@ class ProjectTab(QWidget):
             "roiplot": [],
             "scatter": [],
             "heatmap": [],
+            "annotator": [],
             "pose3D": [],
             "video": [],
             "markers": {},
@@ -210,6 +212,7 @@ class ProjectTab(QWidget):
         # check for required keys in each widget
         for widget_name, requred_keys in {
             "heatmap": ["name", "data_path", "intervals_path", "add_traceplot"],
+            "annotator": ["name", "data_path"],
             "video": ["name", "video_path", "timestamps_path"],
             "traceplot": ["name", "data_path"],
             "spikeplot": ["name", "heatmap_path", "spikes_path", "intervals_path"],

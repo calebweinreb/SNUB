@@ -49,6 +49,10 @@ class TrackStack(Stack):
             track = HeadedTracePlot(config, **props)
             self.widgets.append(track)
 
+        for props in config["annotator"]:
+            track = HeadedAnnotator(config, **props)
+            self.widgets.append(track)
+
         for w in self.widgets + self.overlays:
             self.timeline.toggle_units_signal.connect(w.update_time_unit)
 
