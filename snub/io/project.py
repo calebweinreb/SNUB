@@ -9,6 +9,8 @@ import cmapy
 import scipy.sparse
 from vidio import VideoReader
 
+from snub.io.video import generate_video_timestamps
+
 
 def generate_intervals(start_time, binsize, num_intervals):
     """Generate an array of start/end times for non-overlapping
@@ -187,6 +189,7 @@ def create_project(
         "spikeplot": [],
         "traceplot": [],
         "roiplot": [],
+        "annotator": [],
     }
 
     # create the project directory and config file
@@ -403,7 +406,7 @@ def add_video(
     videopath,
     copy=False,
     name=None,
-    fps=30,
+    fps=None,
     start_time=0,
     timestamps=None,
     size_ratio=1,
@@ -431,10 +434,10 @@ def add_video(
         The name of the video, which is displayed in SNUB and can be used to edit the
         config file. If no name is given, the video's filename will be used.
 
-    fps: float, default=30
+    fps: float, default=None
         The video framerate. This parameter is used in conjunction with ``start_time``
         to generate a timestamps file, unless an array of timestamps is directly
-        provided.
+        provided. If None, it is inferred from the video file.
 
     start_time: float, default=0
         The start time of the video (in seconds). This parameter is used in conjunction
@@ -479,13 +482,7 @@ def add_video(
 
     # load/create timestamps and save as .npy
     if timestamps is None:
-        video_length = len(VideoReader(videopath))
-        timestamps = np.arange(video_length) / fps + start_time
-        print(
-            "Creating timestamps array with start_time={}, fps={}, and n_frames={}".format(
-                start_time, fps, video_length
-            )
-        )
+        timestamps = generate_video_timestamps(videopath, fps, start_time)
     elif isinstance(timestamps, str):
         if timestamps.endswith(".npy"):
             timestamps = np.load(timestamps)
@@ -1708,5 +1705,103 @@ def add_pose3D(
     }
     config["pose3D"].append(props)
     print('Added 3D pose viewer "{}"\n'.format(name))
+    save_config(project_directory, config)
+    return props
+
+
+def add_annotator(
+    project_directory,
+    name,
+    labels=None,
+    autosave=True,
+    annotations=None,
+    label_color=(255, 255, 255),
+    off_color=(0, 0, 0),
+    on_color=(255, 0, 0),
+    label_font_size=12,
+    height_ratio=1,
+    order=0,
+    initial_visibility=True,
+):
+    """Add a widget for annotating frames of a video.
+
+    Parameters
+    ----------
+    project_directory : str
+        Project that the heatmap should be added to.
+
+    name: str
+        The name of the heatmap displayed in SNUB and used
+        for editing the config file.
+
+    labels: list of str, default=None
+        Classes to annotate. Required if `annotations` is not given.
+
+    autosave: bool, default=True
+        Whether to automatically save annotations after every change.
+
+    annotations: dict, default=None
+        Initial annotations, as dict mapping class names of lists of intervals.
+        Required if `labels` is not given.
+
+    label_color: (int,int,int), default=(255,255,255)
+        Color of the labels superimposed on the annotator heatmap.
+
+    off_color: (int,int,int), default=(0,0,0)
+        Color of "off" frames (i.e. those outside an annotated interval)
+
+    on_color: (int,int,int), default=(255,0,0)
+        Color of "on" frames (i.e. those inside an annotated interval)
+
+    label_font_size: int, default=12
+        Size of the labels superimposed on the annotator heatmap.
+
+    height_ratio: int, default=1
+        The relative height initially allocated to this data-view in the track-stack.
+        Spacing can also be adjusted within the browser.
+
+    order: float, default=0
+        Determines the order of placement within the track-stack.
+
+    initial_visibility: bool, default=True
+        Whether this data-view is initially visible when the project is opened.
+        Visibility can also be toggled within the browser.
+
+    Returns
+    -------
+    props: dict
+        annotator properties
+    """
+
+    # check that project exists and an annotator with the given name does not already exist
+    config = load_config(project_directory)
+    _confirm_no_existing_dataview(config, "annotator", name)
+
+    # save initial data file
+    if not annotations:
+        assert labels, "Either `labels` or `annotations` is required."
+        assert len(labels) == len(set(labels)), "Labels are not unique"
+        annotations = {label: [] for label in labels}
+
+    data_path = name + ".annotaton_data.json"
+    save_path = os.path.join(project_directory, data_path)
+    json.dump(annotations, open(save_path, "w"))
+    print(f"Saved annotation data to {save_path}")
+
+    # add props to config
+    props = {
+        "name": name,
+        "data_path": data_path,
+        "autosave": autosave,
+        "label_color": label_color,
+        "off_color": off_color,
+        "on_color": on_color,
+        "label_font_size": label_font_size,
+        "height_ratio": height_ratio,
+        "initial_visibility": initial_visibility,
+    }
+
+    config["annotator"].append(props)
+    print('Added annotator "{}"\n'.format(name))
     save_config(project_directory, config)
     return props

@@ -6,6 +6,10 @@ Selections can be used to show relationships between data-views (such intervals 
 * Use command/control+drag to deselect points and intervals.
 * Use Edit > Deselect All to deselect everything
 
+### Saving and loading selections
+
+The start/end times of all currently selected intervals can be saved to an external file using File > Save Selections. The file is in csv format with two columns containing the start and end times respectively. Selections can also be loaded using File > Load Selections. Note that when you load selections from a file, all current selections are cleared. 
+
 ## Rank variables by enrichment
 
 ### Scatter plot

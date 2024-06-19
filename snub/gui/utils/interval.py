@@ -17,6 +17,11 @@ class IntervalIndexBase:
     def clear(self):
         self.intervals = np.empty((0, 2))
 
+    def set_intervals(self, intervals):
+        self.clear()
+        for s, e in intervals:
+            self.add_interval(s, e)
+
     def partition_intervals(self, start, end):
         ends_before = self.intervals[:, 1] < start
         ends_after = self.intervals[:, 1] >= start

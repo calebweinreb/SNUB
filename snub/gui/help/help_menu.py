@@ -63,6 +63,7 @@ class HelpMenu:
         "Scatter plots": "scatter_plots.md",
         "Selections": "selections.md",
         "Video player": "video.md",
+        "Annotation": "annotator.md",
     }
 
     def __init__(self, parent):

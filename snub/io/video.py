@@ -3,6 +3,7 @@ import imageio
 import scipy
 import tqdm
 import os
+from vidio.read import VideoReader
 
 
 def azure_ir_transform(input_image):
@@ -193,3 +194,14 @@ def fast_prct_filt(input_data, level=8, frames_window=3000):
         data -= tr_BL[padbefore:-padafter].T
 
     return data.squeeze()
+
+
+def generate_video_timestamps(videopath, fps=None, start_time=0):
+    """
+    Generate timestamps from a video file.
+    """
+    reader = VideoReader(videopath)
+    if fps is None:
+        fps = reader.fps
+    timestamps = np.arange(len(reader)) / fps + start_time
+    return timestamps

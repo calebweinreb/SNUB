@@ -2,6 +2,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import sys, os, json
+import numpy as np
 from functools import partial
 from snub.gui.utils import IntervalIndex, CheckBox
 from snub.gui.stacks import PanelStack, TrackStack
@@ -9,6 +10,7 @@ from snub.gui.tracks import TracePlot
 from snub.gui.help import HelpMenu
 
 WIDGET_NAMES = [
+    "annotator",
     "heatmap",
     "video",
     "traceplot",
@@ -101,6 +103,7 @@ class ProjectTab(QWidget):
             panel.new_current_time.connect(self.update_current_time)
             panel.selection_change.connect(self.update_selected_intervals)
         for track in self.trackStack.tracks_flat():
+            track.new_current_time.connect(self.update_current_time)
             if isinstance(track, TracePlot):
                 if track.bound_rois is not None:
                     track.bind_rois(self.panelStack.get_by_name(track.bound_rois))
@@ -199,6 +202,7 @@ class ProjectTab(QWidget):
             "roiplot": [],
             "scatter": [],
             "heatmap": [],
+            "annotator": [],
             "pose3D": [],
             "video": [],
             "markers": {},
@@ -210,6 +214,7 @@ class ProjectTab(QWidget):
         # check for required keys in each widget
         for widget_name, requred_keys in {
             "heatmap": ["name", "data_path", "intervals_path", "add_traceplot"],
+            "annotator": ["name", "data_path"],
             "video": ["name", "video_path", "timestamps_path"],
             "traceplot": ["name", "data_path"],
             "spikeplot": ["name", "heatmap_path", "spikes_path", "intervals_path"],
@@ -339,11 +344,14 @@ class MainWindow(QMainWindow):
         reload_data.setShortcut("Ctrl+R")
         reload_data.triggered.connect(self.reload_data)
 
+        save_selection = QAction("Save Selection", self)
+        save_selection.triggered.connect(self.save_selection)
+
+        load_selection = QAction("Load Selection", self)
+        load_selection.triggered.connect(self.load_selection)
+
         deselect_all = QAction("&Deselect All", self)
         deselect_all.triggered.connect(self.deselect_all)
-
-        save_layout = QAction("&Layout", self)
-        save_layout.triggered.connect(self.save_layout)
 
         self.set_layout_to_rows = QAction("&Rows", self)
         self.set_layout_to_cols = QAction("&Columns", self)
@@ -362,6 +370,8 @@ class MainWindow(QMainWindow):
         fileMenu = mainMenu.addMenu("&File")
         fileMenu.addAction(open_project)
         fileMenu.addAction(reload_data)
+        fileMenu.addAction(save_selection)
+        fileMenu.addAction(load_selection)
 
         editMenu = mainMenu.addMenu("&Edit")
         editMenu.addAction(deselect_all)
@@ -401,8 +411,6 @@ class MainWindow(QMainWindow):
         error_directories = []
         for project_dir in project_directories:
             if len(project_dir) > 0:
-                # if project_dir.endswith('config.json'):
-                #     project_dir = os.path.dirname(project_dir)
                 if os.path.exists(os.path.join(project_dir, "config.json")):
                     self.load_project(project_dir)
                 else:
@@ -425,9 +433,6 @@ class MainWindow(QMainWindow):
         project_dir = current_tab.project_directory
         self.close_tab(current_index)
         self.load_project(project_dir)
-
-    def save_layout(self):
-        print("save")
 
     def load_project(self, project_directory):
         name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
@@ -457,6 +462,75 @@ class MainWindow(QMainWindow):
         return [
             str(),
         ]
+
+    def load_selection(self):
+        current_index = self.tabs.currentIndex()
+        if current_index == -1:
+            QMessageBox.warning(self, "Error: No project is open")
+            return  # no tab
+
+        # get path of file to load
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Selection",
+            "",
+            "All Files (*);;CSV Files (*.csv)",
+            options=options,
+        )
+
+        if file_name:
+            try:
+                self.deselect_all()
+                intervals = np.loadtxt(file_name, delimiter=",", skiprows=1)
+                if len(intervals) > 0:
+                    is_selected = np.ones(len(intervals)) > 0
+                    self.tabs.currentWidget().update_selected_intervals(
+                        intervals, is_selected
+                    )
+            except Exception as e:
+                QMessageBox.warning(
+                    self, "Error", f"Failed to load selection: {str(e)}"
+                )
+
+    def save_selection(self):
+        current_index = self.tabs.currentIndex()
+        if current_index == -1:
+            QMessageBox.warning(self, "Error: No project is open")
+            return  # no tab
+
+        selected_intervals = self.tabs.currentWidget().selected_intervals.intervals
+        if len(selected_intervals) == 0:
+            QMessageBox.warning(self, "Error: Nothing is selected")
+            return  # no tab
+
+        # get path of file to save
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_name, _ = QFileDialog.getSaveFileName(
+            self, "Save Selection", "", "CSV Files (*.csv)", options=options
+        )
+
+        if file_name:
+
+            if not file_name.lower().endswith(".csv"):
+                file_name += ".csv"
+
+            try:
+                # generate csv text
+                text = ["start,end"]
+                for s, e in selected_intervals:
+                    text.append(f"{s},{e}")
+                text = "\n".join(text) + "\n"
+
+                # write to file
+                with open(file_name, "w") as file:
+                    file.write(text)
+            except Exception as e:
+                QMessageBox.warning(
+                    self, "Error", f"Failed to save selection: {str(e)}"
+                )
 
 
 def run():
