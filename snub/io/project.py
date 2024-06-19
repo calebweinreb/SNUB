@@ -9,6 +9,8 @@ import cmapy
 import scipy.sparse
 from vidio import VideoReader
 
+from snub.io.video import generate_video_timestamps
+
 
 def generate_intervals(start_time, binsize, num_intervals):
     """Generate an array of start/end times for non-overlapping
@@ -404,7 +406,7 @@ def add_video(
     videopath,
     copy=False,
     name=None,
-    fps=30,
+    fps=None,
     start_time=0,
     timestamps=None,
     size_ratio=1,
@@ -432,10 +434,10 @@ def add_video(
         The name of the video, which is displayed in SNUB and can be used to edit the
         config file. If no name is given, the video's filename will be used.
 
-    fps: float, default=30
+    fps: float, default=None
         The video framerate. This parameter is used in conjunction with ``start_time``
         to generate a timestamps file, unless an array of timestamps is directly
-        provided.
+        provided. If None, it is inferred from the video file.
 
     start_time: float, default=0
         The start time of the video (in seconds). This parameter is used in conjunction
@@ -480,13 +482,7 @@ def add_video(
 
     # load/create timestamps and save as .npy
     if timestamps is None:
-        video_length = len(VideoReader(videopath))
-        timestamps = np.arange(video_length) / fps + start_time
-        print(
-            "Creating timestamps array with start_time={}, fps={}, and n_frames={}".format(
-                start_time, fps, video_length
-            )
-        )
+        timestamps = generate_video_timestamps(videopath, fps, start_time)
     elif isinstance(timestamps, str):
         if timestamps.endswith(".npy"):
             timestamps = np.load(timestamps)

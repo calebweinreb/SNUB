@@ -61,6 +61,10 @@ The panel-stack (on the left below) contains data-views such as videos, scatter 
 .. image:: ../media/use_case2.gif
    :align: center
 
+
+.. note::
+   When shift+drag or command/control+drag are performed over the annotator widget, they will not affect selections, but rather be used to edit the current annotations. 
+
 |
 
 Color the scatter plot
@@ -75,3 +79,12 @@ Another way to probe the scatter plot is through node coloring.
 .. image:: ../media/use_case4.gif
    :align: center
 
+
+Annotate videos
+~~~~~~~~~~~~~~~
+
+Annotation of videos, e.g., marking the intervals when one or more behaviors occur, can be performed using the annotator widget (see tutorial). The widget is divided into rows corresonding to each annotation label.
+
+* Use shift+drag within a row to add an interval.
+* Use command/control+drag within a row to subtract an interval.
+* Right click to import or export annotations.

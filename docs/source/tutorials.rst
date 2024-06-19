@@ -261,4 +261,33 @@ Add a plot of mouse velocity
         linewidth=2)
 
 
-Next: `How to use the interface <gui>`_.
+Video Annotation
+----------------
+
+The code below shows how to set up a SNUB project for video annotation, e.g., for marking the intervals when one or more behaviors are occuring. 
+
+Define inputs
+~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    import snub.io
+
+    video_path = "path/to/my/video.mp4"
+    labels = ["run", "rear", "groom"]
+    project_directory = 'annotation_project'
+
+    # create project directory
+    video_duration = snub.io.generate_video_timestamps(video_path).max()
+
+    snub.io.create_project(
+        project_directory, 
+        duration=video_duration, 
+        layout_mode="rows"
+    )
+
+    # add video
+    snub.io.add_video(project_directory, video_path)
+
+    # add annotation widget
+    snub.io.add_annotator(project_directory, "my_annotator", labels=labels)

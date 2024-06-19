@@ -76,6 +76,7 @@ class Annotator(Track):
         config,
         data_path=None,
         autosave=True,
+        update_time_on_drag=True,
         label_color=(255, 255, 255),
         off_color=(0, 0, 0),
         on_color=(255, 0, 0),
@@ -91,6 +92,7 @@ class Annotator(Track):
         self.off_color = off_color
         self.on_color = on_color
         self.autosave = autosave
+        self.update_time_on_drag = update_time_on_drag
         self.bounds = config["bounds"]
 
         self.drag_mode = 0  # +1 for shift-click, -1 for command-click
@@ -156,8 +158,6 @@ class Annotator(Track):
                 self.drag_start(t, ix, -1)
             else:
                 super(Annotator, self).mouseMoveEvent(event)
-        else:
-            super(Annotator, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         self.drag_end()
@@ -167,6 +167,8 @@ class Annotator(Track):
         self.drag_mode = mode
         self.drag_initial_time = t
         self.drag_label_ix = label_ix
+        if self.update_time_on_drag:
+            self.new_current_time.emit(t)
 
     def drag_end(self):
         self.drag_mode = 0
@@ -183,6 +185,8 @@ class Annotator(Track):
             elif mode == -1:
                 self.annotation_intervals[self.drag_label_ix].remove_interval(s, e)
             self.update()
+        if self.update_time_on_drag:
+            self.new_current_time.emit(t)
 
     def _position_to_label_ix(self, y):
         return int(y / self.height() * len(self.labels))
@@ -243,6 +247,17 @@ class Annotator(Track):
         else:
             checkbox.setChecked(False)
 
+        # toggle update_time_on_drag
+        checkbox = add_menu_item(
+            "Update time on drag",
+            self.toggle_update_time_on_drag,
+            item_type="checkbox",
+        )
+        if self.update_time_on_drag:
+            checkbox.setChecked(True)
+        else:
+            checkbox.setChecked(False)
+
         # import/export annotations
         add_menu_item("Export annotations", self.export_annotations)
         add_menu_item("Import annotations", self.import_annotations)
@@ -261,6 +276,9 @@ class Annotator(Track):
 
     def toggle_autosave(self, state):
         self.autosave = state
+
+    def toggle_update_time_on_drag(self, state):
+        self.update_time_on_drag = state
 
     def export_annotations(self):
         options = QFileDialog.Options()

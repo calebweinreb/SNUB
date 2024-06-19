@@ -48,6 +48,8 @@ class AddVlineDialog(QDialog):
 
 
 class Track(QWidget):
+    new_current_time = pyqtSignal(float)
+
     def __init__(self, config, parent=None, height_ratio=1, order=0, **kwargs):
         super().__init__(parent=parent)
         self.layout_mode = config["layout_mode"]

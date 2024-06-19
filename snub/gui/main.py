@@ -103,6 +103,7 @@ class ProjectTab(QWidget):
             panel.new_current_time.connect(self.update_current_time)
             panel.selection_change.connect(self.update_selected_intervals)
         for track in self.trackStack.tracks_flat():
+            track.new_current_time.connect(self.update_current_time)
             if isinstance(track, TracePlot):
                 if track.bound_rois is not None:
                     track.bind_rois(self.panelStack.get_by_name(track.bound_rois))
@@ -478,8 +479,6 @@ class MainWindow(QMainWindow):
             "All Files (*);;CSV Files (*.csv)",
             options=options,
         )
-
-        print(file_name)
 
         if file_name:
             try:
