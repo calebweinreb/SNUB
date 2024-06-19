@@ -79,6 +79,7 @@ Another way to probe the scatter plot is through node coloring.
 .. image:: ../media/use_case4.gif
    :align: center
 
+|
 
 Annotate videos
 ~~~~~~~~~~~~~~~
