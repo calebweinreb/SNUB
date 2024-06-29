@@ -8,7 +8,7 @@ import os
 
 from snub.gui.tracks import Track, TrackGroup
 from snub.io.project import _random_color
-from snub.gui.utils import CHECKED_ICON_PATH, UNCHECKED_ICON_PATH
+from snub.gui.utils import CHECKED_ICON_PATH, UNCHECKED_ICON_PATH, CustomContextMenu
 
 
 class CheckableComboBox(QComboBox):
@@ -214,21 +214,8 @@ class TracePlot(Track):
         self.visible_traces_signal.emit(self.visible_traces)
 
     def contextMenuEvent(self, event):
-        contextMenu = QMenu(self)
-
-        def add_menu_item(name, slot, item_type="label"):
-            action = QWidgetAction(self)
-            if item_type == "checkbox":
-                widget = QCheckBox(name)
-                widget.stateChanged.connect(slot)
-            elif item_type == "label":
-                widget = QLabel(name)
-                action.triggered.connect(slot)
-            action.setDefaultWidget(widget)
-            contextMenu.addAction(action)
-            return widget
-
-        checkbox = add_menu_item(
+        contextMenu = CustomContextMenu(self)
+        checkbox = contextMenu.add_item(
             "Automatic y-axis limits",
             self.toggle_auto_yaxis_limits,
             item_type="checkbox",
@@ -238,25 +225,11 @@ class TracePlot(Track):
         else:
             checkbox.setChecked(False)
 
-        add_menu_item("Adjust y-axis limits", self.show_adjust_yaxis_dialog)
+        contextMenu.add_item("Adjust y-axis limits", self.show_adjust_yaxis_dialog)
         contextMenu.addSeparator()
-
-        add_menu_item("Adjust line width", self.show_adjust_linewidth_dialog)
+        contextMenu.add_item("Adjust line width", self.show_adjust_linewidth_dialog)
         contextMenu.addSeparator()
-
-        add_menu_item("Hide all traces", self.clear)
-
-        contextMenu.setStyleSheet(
-            f"""
-            QMenu::item, QLabel, QCheckBox {{ background-color : #3e3e3e; padding: 5px 6px 5px 6px;}}
-            QMenu::item:selected, QLabel:hover, QCheckBox:hover {{ background-color: #999999;}}
-            QMenu::separator {{ background-color: rgb(20,20,20);}}
-            QCheckBox::indicator:unchecked {{ image: url({UNCHECKED_ICON_PATH}); }}
-            QCheckBox::indicator:checked {{ image: url({CHECKED_ICON_PATH}); }}
-            QCheckBox::indicator {{ width: 14px; height: 14px;}}
-            """
-        )
-
+        contextMenu.add_item("Hide all traces", self.clear)
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
 
     def show_adjust_yaxis_dialog(self):

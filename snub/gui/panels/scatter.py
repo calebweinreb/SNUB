@@ -17,6 +17,7 @@ from snub.gui.utils import (
     IntervalIndex,
     UNCHECKED_ICON_PATH,
     CHECKED_ICON_PATH,
+    CustomContextMenu,
 )
 
 
@@ -191,38 +192,30 @@ class ScatterPanel(Panel, HeaderMixin):
             self.current_node_marker.parent = None
 
     def context_menu(self, event):
-        contextMenu = QMenu(self)
-
-        def add_menu_item(name, slot, item_type="label"):
-            action = QWidgetAction(self)
-            if item_type == "checkbox":
-                widget = QCheckBox(name)
-                widget.stateChanged.connect(slot)
-            elif item_type == "label":
-                widget = QLabel(name)
-                action.triggered.connect(slot)
-            action.setDefaultWidget(widget)
-            contextMenu.addAction(action)
-            return widget
+        contextMenu = CustomContextMenu(self)
 
         # show/hide variable menu
         if self.variable_menu.isVisible():
-            add_menu_item("Hide variables menu", self.hide_variable_menu)
+            contextMenu.add_item("Hide variables menu", self.hide_variable_menu)
         else:
-            add_menu_item("Show variables menu", self.show_variable_menu)
+            contextMenu.add_item("Show variables menu", self.show_variable_menu)
 
         # get enriched variables (only available is nodes are selected)
-        label = add_menu_item(
-            "Sort variables by enrichment", self.get_enriched_variables
+        label = contextMenu.add_item(
+            "Sort variables by enrichment",
+            self.get_enriched_variables,
         )
         if self.is_selected.sum() == 0:
             label.setStyleSheet("QLabel { color: rgb(120,120,120); }")
 
-        add_menu_item("Restore original variable order", self.show_variable_menu)
+        contextMenu.add_item(
+            "Restore original variable order",
+            self.show_variable_menu,
+        )
         contextMenu.addSeparator()
 
         # toggle whether to plot high-variable-val nodes on top
-        checkbox = add_menu_item(
+        checkbox = contextMenu.add_item(
             "Plot high values on top",
             self.toggle_sort_by_color_value,
             item_type="checkbox",
@@ -234,25 +227,20 @@ class ScatterPanel(Panel, HeaderMixin):
         contextMenu.addSeparator()
 
         # click to show adjust colormap range dialog
-        add_menu_item("Adjust colormap range", self.show_adjust_colormap_dialog)
-        add_menu_item("Adjust marker appearance", self.show_adjust_marker_dialog)
+        contextMenu.add_item("Adjust colormap range", self.show_adjust_colormap_dialog)
+        contextMenu.add_item("Adjust marker appearance", self.show_adjust_marker_dialog)
         contextMenu.addSeparator()
 
         if self.show_marker_trail:
-            add_menu_item("Hide marker trail", partial(self.toggle_marker_trail, False))
+            contextMenu.add_item(
+                "Hide marker trail",
+                partial(self.toggle_marker_trail, False),
+            )
         else:
-            add_menu_item("Show marker trail", partial(self.toggle_marker_trail, True))
-
-        contextMenu.setStyleSheet(
-            f"""
-            QMenu::item, QLabel, QCheckBox {{ background-color : #3e3e3e; padding: 5px 6px 5px 6px;}}
-            QMenu::item:selected, QLabel:hover, QCheckBox:hover {{ background-color: #999999;}}
-            QMenu::separator {{ background-color: rgb(20,20,20);}}
-            QCheckBox::indicator:unchecked {{ image: url({UNCHECKED_ICON_PATH}); }}
-            QCheckBox::indicator:checked {{ image: url({CHECKED_ICON_PATH}); }}
-            QCheckBox::indicator {{ width: 14px; height: 14px;}}
-            """
-        )
+            contextMenu.add_item(
+                "Show marker trail",
+                partial(self.toggle_marker_trail, True),
+            )
         action = contextMenu.exec_(event.native.globalPos())
 
     def toggle_marker_trail(self, visibility):

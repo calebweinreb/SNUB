@@ -11,7 +11,7 @@ from vispy.scene import SceneCanvas
 from vispy.scene.visuals import Image, Line
 
 from snub.gui.panels import Panel
-from snub.gui.utils import HeaderMixin, AdjustColormapDialog
+from snub.gui.utils import HeaderMixin, AdjustColormapDialog, CustomContextMenu
 from snub.io.project import _random_color
 
 
@@ -161,27 +161,8 @@ class ROIPanel(Panel, HeaderMixin):
             self.context_menu(event)
 
     def context_menu(self, event):
-        contextMenu = QMenu(self)
-
-        def add_menu_item(name, slot, item_type="label"):
-            action = QWidgetAction(self)
-            if item_type == "checkbox":
-                widget = QCheckBox(name)
-                widget.stateChanged.connect(slot)
-            elif item_type == "label":
-                widget = QLabel(name)
-                action.triggered.connect(slot)
-            action.setDefaultWidget(widget)
-            contextMenu.addAction(action)
-            return widget
-
-        # click to show adjust colormap range dialog
-        label = add_menu_item("Adjust colormap range", self.show_adjust_colormap_dialog)
-
-        contextMenu.setStyleSheet(
-            """
-            QMenu::item, QLabel, QCheckBox { background-color : #3E3E3E; padding: 5px 6px 5px 6px;}
-            QMenu::item:selected, QLabel:hover, QCheckBox:hover { background-color: #999999;}
-            QMenu::separator { background-color: rgb(20,20,20);} """
+        contextMenu = CustomContextMenu(self)
+        label = contextMenu.add_item(
+            "Adjust colormap range", self.show_adjust_colormap_dialog
         )
         action = contextMenu.exec_(event.native.globalPos())

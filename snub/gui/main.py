@@ -4,7 +4,7 @@ from PyQt5.QtGui import *
 import sys, os, json
 import numpy as np
 from functools import partial
-from snub.gui.utils import IntervalIndex, CheckBox
+from snub.gui.utils import IntervalIndex, CheckBox, CustomContextMenu
 from snub.gui.stacks import PanelStack, TrackStack
 from snub.gui.tracks import TracePlot
 from snub.gui.help import HelpMenu
@@ -60,6 +60,7 @@ class ProjectTab(QWidget):
         super().__init__()
         # load config
         self.project_directory = project_directory
+        self.name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
         self.layout_mode = None
         config_path = os.path.join(self.project_directory, "config.json")
         config = json.load(open(config_path, "r"))
@@ -320,6 +321,41 @@ class ProjectTab(QWidget):
         self.play_button.setIcon(self.play_icon)
         self.playing = False
 
+    def copy_tab_name(self):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.name)
+
+
+class CustomTabBar(QTabBar):
+    def __init__(self, parent=None):
+        super(CustomTabBar, self).__init__(parent)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showContextMenu)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.RightButton:
+            self.showContextMenu(event.pos())
+        else:
+            super(CustomTabBar, self).mousePressEvent(event)
+
+    def showContextMenu(self, pos):
+        global_pos = self.mapToGlobal(pos)
+        index = self.tabAt(pos)
+        if index != -1:
+            contextMenu = CustomContextMenu(self)
+            close_action = contextMenu.add_item(
+                "Close Tab", lambda: self.parent().removeTab(index)
+            )
+            copy_action = contextMenu.add_item(
+                "Copy Name", lambda: self.copyTabName(index)
+            )
+            contextMenu.exec_(global_pos)
+
+    def copyTabName(self, index):
+        clipboard = QApplication.clipboard()
+        tab_name = self.tabText(index)
+        clipboard.setText(tab_name)
+
 
 class MainWindow(QMainWindow):
     """
@@ -330,6 +366,7 @@ class MainWindow(QMainWindow):
     def __init__(self, args):
         super().__init__()
         self.tabs = QTabWidget()
+        self.tabs.setTabBar(CustomTabBar(self.tabs))
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.tabs.currentChanged.connect(self.tab_changed)
@@ -435,9 +472,8 @@ class MainWindow(QMainWindow):
         self.load_project(project_dir)
 
     def load_project(self, project_directory):
-        name = project_directory.strip(os.path.sep).split(os.path.sep)[-1]
         project_tab = ProjectTab(project_directory)
-        self.tabs.addTab(project_tab, name)
+        self.tabs.addTab(project_tab, project_tab.name)
         self.tabs.setCurrentWidget(project_tab)
 
     def getExistingDirectories(self):

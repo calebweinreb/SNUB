@@ -62,7 +62,7 @@ class HeaderMixin:
         header_height=20,
         orientation="horizontal",
         min_size_at_show=100,
-        **kwargs
+        **kwargs,
     ):
         self.name = name
         self.saved_size = initial_saved_size
@@ -212,3 +212,39 @@ class CheckBox(QPushButton):
             self.setIcon(self.checked_icon)
         else:
             self.setIcon(self.unchecked_icon)
+
+
+class CustomContextMenu(QMenu):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        self.initUI()
+
+    def add_item(self, name, slot, item_type="label"):
+        action = QWidgetAction(self.parent)
+        if item_type == "checkbox":
+            widget = QCheckBox(name)
+            widget.stateChanged.connect(slot)
+        elif item_type == "button":
+            widget = QPushButton(name)
+            widget.clicked.connect(slot)
+        elif item_type == "label":
+            widget = QLabel(name)
+            action.triggered.connect(slot)
+        else:
+            return
+        action.setDefaultWidget(widget)
+        self.addAction(action)
+        return widget
+
+    def initUI(self):
+        self.setStyleSheet(
+            f"""
+            QMenu::item, QLabel, QCheckBox {{ background-color : #3e3e3e; padding: 5px 6px 5px 6px;}}
+            QMenu::item:selected, QLabel:hover, QCheckBox:hover {{ background-color: #999999;}}
+            QMenu::separator {{ background-color: rgb(20,20,20);}}
+            QCheckBox::indicator:unchecked {{ image: url({UNCHECKED_ICON_PATH}); }}
+            QCheckBox::indicator:checked {{ image: url({CHECKED_ICON_PATH}); }}
+            QCheckBox::indicator {{ width: 14px; height: 14px;}}
+            """
+        )
