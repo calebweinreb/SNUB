@@ -5,4 +5,5 @@ from .widgets import (
     CheckBox,
     CHECKED_ICON_PATH,
     UNCHECKED_ICON_PATH,
+    CustomContextMenu,
 )

@@ -8,7 +8,12 @@ import cmapy
 from numba import njit, prange
 
 from snub.gui.tracks import Track, TracePlot, TrackGroup
-from snub.gui.utils import AdjustColormapDialog, CHECKED_ICON_PATH, UNCHECKED_ICON_PATH
+from snub.gui.utils import (
+    AdjustColormapDialog,
+    CHECKED_ICON_PATH,
+    UNCHECKED_ICON_PATH,
+    CustomContextMenu,
+)
 from snub.io.project import _random_color
 
 
@@ -310,24 +315,7 @@ class Heatmap(Track):
         self.heatmap_image.update_current_range(current_range)
 
     def contextMenuEvent(self, event):
-        contextMenu = QMenu(self)
-
-        def add_menu_item(name, slot, item_type="label"):
-            action = QWidgetAction(self)
-            if item_type == "checkbox":
-                widget = QCheckBox(name)
-                widget.stateChanged.connect(slot)
-            elif item_type == "button":
-                widget = QPushButton(name)
-                widget.clicked.connect(slot)
-            elif item_type == "label":
-                widget = QLabel(name)
-                action.triggered.connect(slot)
-            else:
-                return
-            action.setDefaultWidget(widget)
-            contextMenu.addAction(action)
-            return widget
+        contextMenu = CustomContextMenu(self)
 
         # used to get row label and for zooming
         y = (
@@ -341,44 +329,36 @@ class Heatmap(Track):
         if self.add_traceplot:
             row_label = self.labels[self.row_order[int(y)]]
             display_trace_slot = lambda: self.display_trace_signal.emit(row_label)
-            add_menu_item("Plot trace: {}".format(row_label), display_trace_slot)
+            contextMenu.add_item(
+                "Plot trace: {}".format(row_label),
+                display_trace_slot,
+            )
 
         # show adjust colormap dialog
-        add_menu_item("Adjust colormap range", self.show_adjust_colormap_dialog)
+        contextMenu.add_item("Adjust colormap range", self.show_adjust_colormap_dialog)
         contextMenu.addSeparator()
 
         if self.heatmap_labels.isVisible():
-            add_menu_item("Hide row labels", self.hide_labels)
+            contextMenu.add_item("Hide row labels", self.hide_labels)
         else:
-            add_menu_item("Show row labels", self.show_labels)
+            contextMenu.add_item("Show row labels", self.show_labels)
         contextMenu.addSeparator()
 
         # for reordering rows
-        add_menu_item("Reorder by selection", self.reorder_by_selection)
-        add_menu_item("Restore original order", self.restore_original_order)
+        contextMenu.add_item("Reorder by selection", self.reorder_by_selection)
+        contextMenu.add_item("Restore original order", self.restore_original_order)
         contextMenu.addSeparator()
 
         # for changing vertical range
-        add_menu_item(
+        contextMenu.add_item(
             "Zoom in (vertical)",
             partial(self.zoom_vertical, y, 2 / 3),
             item_type="button",
         )
-        add_menu_item(
+        contextMenu.add_item(
             "Zoom out (vertical)",
             partial(self.zoom_vertical, y, 3 / 2),
             item_type="button",
-        )
-
-        contextMenu.setStyleSheet(
-            f"""
-            QMenu::item, QLabel, QCheckBox {{ background-color : #3e3e3e; padding: 5px 6px 5px 6px;}}
-            QMenu::item:selected, QLabel:hover, QCheckBox:hover {{ background-color: #999999;}}
-            QMenu::separator {{ background-color: rgb(20,20,20);}}
-            QCheckBox::indicator:unchecked {{ image: url({UNCHECKED_ICON_PATH}); }}
-            QCheckBox::indicator:checked {{ image: url({CHECKED_ICON_PATH}); }}
-            QCheckBox::indicator {{ width: 14px; height: 14px;}}
-            """
         )
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
 

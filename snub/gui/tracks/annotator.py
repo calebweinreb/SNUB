@@ -4,7 +4,12 @@ from PyQt5.QtGui import *
 import numpy as np
 import json
 from snub.gui.tracks import Track, TrackGroup, position_to_time
-from snub.gui.utils import IntervalIndex, CHECKED_ICON_PATH, UNCHECKED_ICON_PATH
+from snub.gui.utils import (
+    IntervalIndex,
+    CHECKED_ICON_PATH,
+    UNCHECKED_ICON_PATH,
+    CustomContextMenu,
+)
 
 
 class AnnotatorLabels(QWidget):
@@ -222,22 +227,10 @@ class Annotator(Track):
                 self.update()
 
     def contextMenuEvent(self, event):
-        contextMenu = QMenu(self)
-
-        def add_menu_item(name, slot, item_type="label"):
-            action = QWidgetAction(self)
-            if item_type == "checkbox":
-                widget = QCheckBox(name)
-                widget.stateChanged.connect(slot)
-            elif item_type == "label":
-                widget = QLabel(name)
-                action.triggered.connect(slot)
-            action.setDefaultWidget(widget)
-            contextMenu.addAction(action)
-            return widget
+        contextMenu = CustomContextMenu(self)
 
         # toggle autosave
-        checkbox = add_menu_item(
+        checkbox = contextMenu.add_item(
             "Automatically save",
             self.toggle_autosave,
             item_type="checkbox",
@@ -248,7 +241,7 @@ class Annotator(Track):
             checkbox.setChecked(False)
 
         # toggle update_time_on_drag
-        checkbox = add_menu_item(
+        checkbox = contextMenu.add_item(
             "Update time on drag",
             self.toggle_update_time_on_drag,
             item_type="checkbox",
@@ -259,19 +252,9 @@ class Annotator(Track):
             checkbox.setChecked(False)
 
         # import/export annotations
-        add_menu_item("Export annotations", self.export_annotations)
-        add_menu_item("Import annotations", self.import_annotations)
+        contextMenu.add_item("Export annotations", self.export_annotations)
+        contextMenu.add_item("Import annotations", self.import_annotations)
 
-        contextMenu.setStyleSheet(
-            f"""
-            QMenu::item, QLabel, QCheckBox {{ background-color : #3e3e3e; padding: 5px 6px 5px 6px;}}
-            QMenu::item:selected, QLabel:hover, QCheckBox:hover {{ background-color: #999999;}}
-            QMenu::separator {{ background-color: rgb(20,20,20);}}
-            QCheckBox::indicator:unchecked {{ image: url({UNCHECKED_ICON_PATH}); }}
-            QCheckBox::indicator:checked {{ image: url({CHECKED_ICON_PATH}); }}
-            QCheckBox::indicator {{ width: 14px; height: 14px;}}
-            """
-        )
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
 
     def toggle_autosave(self, state):
