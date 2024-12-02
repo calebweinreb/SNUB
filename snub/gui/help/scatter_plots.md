@@ -9,7 +9,7 @@ Scatter plots display two-dimensional data using points. In SNUB, each point cor
 
 ### Visualizing dynamics
 
-The whenever the current time (as indicated by the vertical line in the [timeline](timeline.md)) falls within the interval of a point in the scatter plot, the point is highlighted with a big red dot. In some cases, it may also be useful to visulize temporal trajectories in the scatter plot. This can be done using a "marker trail", which uses red dots of decreasing radius to highlight markers that consecutively precede the current time. 
+The whenever the current time (as indicated by the vertical line in the [timeline](timeline.md)) falls within the interval of a point in the scatter plot, the point is highlighted with a big red dot. In some cases, it may also be useful to visualize temporal trajectories in the scatter plot. This can be done using a "marker trail", which uses red dots of decreasing radius to highlight markers that consecutively precede the current time. 
 
 * **To show/hide the marker trail**, right click on the scatter plot and select "Show/hide marker trail". Note that you may need to play/scrub the timeline to see the trail initially.
 

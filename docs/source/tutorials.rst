@@ -264,7 +264,7 @@ Add a plot of mouse velocity
 Video Annotation
 ----------------
 
-The code below shows how to set up a SNUB project for video annotation, e.g., for marking the intervals when one or more behaviors are occuring. 
+The code below shows how to set up a SNUB project for video annotation, e.g., for marking the intervals when one or more behaviors are occurring. 
 
 
 .. code-block:: python

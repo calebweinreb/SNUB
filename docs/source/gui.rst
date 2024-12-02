@@ -22,13 +22,13 @@ Open your project by going to ``File > Open Project``, navigate to the project d
 Navigate the timeline
 ~~~~~~~~~~~~~~~~~~~~~
 
-The brower is divided into two sections. The track-stack (on the right below) contains data-views that have time as a dimension, such as heatmaps, trace plots and spike plots. The tracks are always synchronized so that the same horizontal coordinate represents the same point in time. 
+The browser is divided into two sections. The track-stack (on the right below) contains data-views that have time as a dimension, such as heatmaps, trace plots and spike plots. The tracks are always synchronized so that the same horizontal coordinate represents the same point in time. 
 
 * Click/drag to change the current time.
 * Use scrolls/gestures to change the visible time window.  
 * Use the play button and speed slider at the bottom to watch in real time
 * Toggle "center playhead" to keep the current time centered
-* Toggle the timeline unit between minutes:seconds and "timestemps". Timesteps are multiples of the ``min_step`` parameters in the projects config file, and can be useful for accessing specific timepoinmts (e.g. video frames) outside of SNUB.
+* Toggle the timeline unit between minutes:seconds and "timestamps". Timesteps are multiples of the ``min_step`` parameters in the projects config file, and can be useful for accessing specific timepoinmts (e.g. video frames) outside of SNUB.
 
 .. image:: ../media/use_case1.gif
    :align: center
@@ -84,7 +84,7 @@ Another way to probe the scatter plot is through node coloring.
 Annotate videos
 ~~~~~~~~~~~~~~~
 
-Annotation of videos, e.g., marking the intervals when one or more behaviors occur, can be performed using the annotator widget (see tutorial). The widget is divided into rows corresonding to each annotation label.
+Annotation of videos, e.g., marking the intervals when one or more behaviors occur, can be performed using the annotator widget (see tutorial). The widget is divided into rows corresponding to each annotation label.
 
 * Use shift+drag within a row to add an interval.
 * Use command/control+drag within a row to subtract an interval.

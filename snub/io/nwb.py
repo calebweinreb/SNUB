@@ -39,10 +39,10 @@ def create_project_from_nwb(
         used. If these names are not unique, an error will be raised.
 
     project_options, dict
-        Additonal key word arguments for snub.io.create_project
+        Additional key word arguments for snub.io.create_project
 
     subplot_options, dict
-        Additonal key word arguments to be passed to the specific subplot-adding functions
+        Additional key word arguments to be passed to the specific subplot-adding functions
         as a dict mapping dataset names to dicts of options. The names should be full paths
         if use_full_path is True, or just the names of the leaf nodes otherwise.
     """

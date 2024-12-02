@@ -164,7 +164,7 @@ def umap_embedding(
 
     Returns
     -------
-    coodinates: ndarray
+    coordinates: ndarray
         (N,2) array containing UMAP coordinates
     """
     from sklearn.decomposition import PCA

@@ -4,7 +4,7 @@ The SNUB layout is organized hierarchically: each project is a tab, and each tab
 
 * **To add a new tab**, [load a project](loading_data.md) using the "File" menu. 
 * **To remove a tab**, click the "x" in the top right corner of the tab.
-* **To remove a data-view**, either minimize it using the minus sign in the top right corner or click the "x" in the top right corner. Minizing is temporary, whereas clicking the "x" is permanent. Removing/minimizing data-views can help improve performance, especially during playback.
+* **To remove a data-view**, either minimize it using the minus sign in the top right corner or click the "x" in the top right corner. Minimizing is temporary, whereas clicking the "x" is permanent. Removing/minimizing data-views can help improve performance, especially during playback.
 * **To change data-view sizes**, drag the corresponding dividers (all dividers are draggable).
 
 ### Track and panel stacks
