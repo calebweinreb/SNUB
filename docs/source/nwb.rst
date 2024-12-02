@@ -16,7 +16,7 @@ The following neurodata types are supported:
     Contains fluorescence traces for regions of interest (ROIs). A SNUB heatmap is generated containing one row per ROI. Metadata associated with each ROI is not linked in the SNUB plot.
 
 - ``TimeSeries``
-    Contains time series in one or more dimensions. A SNUB heatmap is generated for 15 or more dimensions, and a SNUB trace plot is generaed for fewer than 15 dimensions.
+    Contains time series in one or more dimensions. A SNUB heatmap is generated for 15 or more dimensions, and a SNUB trace plot is generated for fewer than 15 dimensions.
 
 - ``PoseEstimation``
     Contains pose tracking data (available via the ``ndx-pose`` extension). A SNUB trace plot is generated for each tracked body part and spatial dimension. For 3D data, a 3D pose plot is also generated.
@@ -31,7 +31,7 @@ The following neurodata types are supported:
     Contains annotated intervals. Each interval has a start time, a stop time, and an arbitrary number of additional metadata fields. A SNUB trace plot is generated with one trace showing the start and stop times of each interval. All other metadata is ignored since it cannot be canonically represented using the currently available SNUB plot types.
 
 - ``Position``
-    Contains position data in the form of one or more ``SpatialSeries`` objects. A SNUB trace plot is generated with traces for each spatial dimensions of each consistuent spatial series.
+    Contains position data in the form of one or more ``SpatialSeries`` objects. A SNUB trace plot is generated with traces for each spatial dimensions of each constituent spatial series.
 
 - ``SpatialSeries``
     Contains spatial data in the form of a time series with one or more dimensions. A standalone SNUB trace plot is generated for the spatial series if it is not contained within a ``Position`` object.

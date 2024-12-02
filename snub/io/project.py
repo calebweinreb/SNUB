@@ -584,7 +584,7 @@ def add_traceplot(
     config = load_config(project_directory)
     _confirm_no_existing_dataview(config, "traceplot", name)
 
-    # choose random colors for traces that werent assigned a color
+    # choose random colors for traces that weren't assigned a color
     trace_colors = dict(trace_colors)
     unassigned_traces = [k for k in traces.keys() if not k in trace_colors]
     print("Assigning random colors to traces", unassigned_traces)
@@ -1446,7 +1446,7 @@ def add_roiplot(
                 contour_colors[l] = c
         heatmap_props["bound_rois"] = name
 
-    # choose random colors for ROIs that werent assigned a color
+    # choose random colors for ROIs that weren't assigned a color
     contour_colors = dict(contour_colors)
     unassigned_rois = [k for k in labels if not k in contour_colors]
     print("Assigning random colors to rois", unassigned_rois)

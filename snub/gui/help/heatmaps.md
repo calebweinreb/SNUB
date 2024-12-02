@@ -1,6 +1,6 @@
 ## Heatmaps
 
-Heatmaps dispay time-series data using color intensity (one time-series per row). They are aligned to the [timeline](timeline.md) at the bottom of the window and can be navigated using gestures (pan and zoom).
+Heatmaps display time-series data using color intensity (one time-series per row). They are aligned to the [timeline](timeline.md) at the bottom of the window and can be navigated using gestures (pan and zoom).
 
 * **To adjust the colormap**, right click on the heatmap and select "Adjust colormap range" and enter a new min or max value.
 * **For vertical zoom**, right click on the heatmap and select "Zoom in (vertical)" or "Zoom out (vertical)". Zooming is centered in the point where you clicked. We do not provide a direct way to scroll along the vertical axis, so if you are zoomed in the top rows of the heatmap and want to see the bottom rows, you will need to zoom out from the top rows and then zoom back in to the bottom rows.
