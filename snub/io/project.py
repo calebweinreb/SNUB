@@ -1805,3 +1805,55 @@ def add_annotator(
     print('Added annotator "{}"\n'.format(name))
     save_config(project_directory, config)
     return props
+
+
+def modify_annotator_label(
+    project_directory,
+    name,
+    new_label,
+    old_label=None,
+):
+    """Add a new label to an annotator or rename an existing label.
+
+    Parameters
+    ----------
+    project_directory : str
+        Project that the annotator should be modified in.
+
+    name: str
+        Name of the annotator to modify.
+
+    new_label: str
+        New label name to add.
+
+    old_label: str, default=None
+        If given, the label with this name will be replaced with `new_label`.
+        If not given, `new_label` will be added to the annotator.
+    """
+    # load config
+    config = load_config(project_directory)
+
+    # find annotator
+    index = _get_named_dataview_index(config, "annotator", name)
+    if index is None:
+        raise AssertionError(f'The project does not contain an annotator with the name "{name}"')
+
+    # load data
+    props = config["annotator"][index]
+    data_path = os.path.join(project_directory, props["data_path"])
+    annotations = json.load(open(data_path))
+
+    # modify annotations
+    if old_label is not None:
+        if old_label not in annotations:
+            raise AssertionError(f'The label "{old_label}" does not exist in annotator "{name}"')
+        annotations[new_label] = annotations.pop(old_label)
+        print(f'Renamed label "{old_label}" to "{new_label}" in annotator "{name}"')
+    else:
+        if new_label in annotations:
+            raise AssertionError(f'The label "{new_label}" already exists in annotator "{name}"')
+        annotations[new_label] = []
+        print(f'Added label "{new_label}" to annotator "{name}"')
+
+    # save data
+    json.dump(annotations, open(data_path, "w"))
