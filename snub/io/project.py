@@ -1857,3 +1857,44 @@ def modify_annotator_label(
 
     # save data
     json.dump(annotations, open(data_path, "w"))
+
+
+def remove_annotator_label(
+    project_directory,
+    name,
+    label,
+):
+    """Remove a label from an annotator. All annotations for this label will be lost.
+
+    Parameters
+    ----------
+    project_directory : str
+        Project that the annotator should be modified in.
+
+    name: str
+        Name of the annotator to modify.
+
+    label: str
+        Label name to remove.
+    """
+    # load config
+    config = load_config(project_directory)
+
+    # find annotator
+    index = _get_named_dataview_index(config, "annotator", name)
+    if index is None:
+        raise AssertionError(f'The project does not contain an annotator with the name "{name}"')
+
+    # load data
+    props = config["annotator"][index]
+    data_path = os.path.join(project_directory, props["data_path"])
+    annotations = json.load(open(data_path))
+
+    # remove label
+    if label not in annotations:
+        raise AssertionError(f'The label "{label}" does not exist in annotator "{name}"')
+    annotations.pop(label)
+    print(f'Removed label "{label}" from annotator "{name}"')
+
+    # save data
+    json.dump(annotations, open(data_path, "w"))
