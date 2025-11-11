@@ -125,7 +125,7 @@ def detrend_video(
         Clipping bounds for normalizing detrended video. The interval defined
         by `clip` is rescaled to [0,255] in the final video.
 
-    quality: int, defaut=6
+    quality: int, default=6
         Quality of output video (passed to imageio writer).
 
     """
